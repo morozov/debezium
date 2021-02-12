@@ -50,6 +50,7 @@ public class SqlServerConnectorTask extends BaseSourceTask {
     private volatile SqlServerConnection metadataConnection;
     private volatile ErrorHandler errorHandler;
     private volatile SqlServerDatabaseSchema schema;
+    private volatile String[] databases;
 
     @Override
     public String version() {
@@ -71,6 +72,9 @@ public class SqlServerConnectorTask extends BaseSourceTask {
                 .withDefault("database.fetchSize", 10_000)
                 .build();
 
+        // TODO: move "databases" to a constant, throw if the array is empty
+        databases = config.getString("databases", "").split(",");
+
         final Configuration jdbcConfig = config.filter(
                 x -> !(x.startsWith(DatabaseHistory.CONFIGURATION_FIELD_PREFIX_STRING) || x.equals(HistorizedRelationalDatabaseConnectorConfig.DATABASE_HISTORY.name())))
                 .subset("database.", true);
@@ -85,7 +89,7 @@ public class SqlServerConnectorTask extends BaseSourceTask {
         this.schema = new SqlServerDatabaseSchema(connectorConfig, valueConverters, topicSelector, schemaNameAdjuster);
         this.schema.initializeStorage();
 
-        final Map<Map<String, ?>, OffsetContext> previousOffsets = getPreviousOffsets(new SqlServerOffsetContext.Loader(connectorConfig, config));
+        final Map<Map<String, ?>, OffsetContext> previousOffsets = getPreviousOffsets(new SqlServerOffsetContext.Loader(connectorConfig, databases));
         if (!previousOffsets.isEmpty()) {
             schema.recover(previousOffsets);
         }

@@ -145,11 +145,11 @@ public class SqlServerOffsetContext implements OffsetContext {
     public static class Loader implements OffsetContext.Loader {
 
         private final SqlServerConnectorConfig connectorConfig;
-        private final Configuration taskConfig;
+        private final String[] databases;
 
-        public Loader(SqlServerConnectorConfig connectorConfig, Configuration taskConfig) {
+        public Loader(SqlServerConnectorConfig connectorConfig, String[] databases) {
             this.connectorConfig = connectorConfig;
-            this.taskConfig = taskConfig;
+            this.databases = databases;
         }
 
         @Override
@@ -158,16 +158,12 @@ public class SqlServerOffsetContext implements OffsetContext {
             Map<String, String> partition;
             Collection<Map<String, ?>> partitions = new HashSet<>();
 
-            // TODO: move "databases" to a constant
-            String[] databases = taskConfig.getString("databases", "").split(",");
-
             for (String database : databases) {
                 partition = new HashMap<>(prototype);
                 partition.put(DATABASE_PARTITION_KEY, database);
                 partitions.add(partition);
             }
 
-            // TODO: throw if the array is empty
             return partitions;
         }
 

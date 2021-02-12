@@ -49,13 +49,13 @@ public class ChangeEventSourceCoordinator {
      */
     public static final Duration SHUTDOWN_WAIT_TIMEOUT = Duration.ofSeconds(90);
 
-    private final OffsetContext previousOffset;
+    private final OffsetContext previousOffsets;
     private final ErrorHandler errorHandler;
     private final ChangeEventSourceFactory changeEventSourceFactory;
     private final ChangeEventSourceMetricsFactory changeEventSourceMetricsFactory;
     private final ExecutorService executor;
     private final EventDispatcher<?> eventDispatcher;
-    private final DatabaseSchema<?> schema;
+    private final DatabaseSchema<?> schemas;
 
     private volatile boolean running;
     private volatile StreamingChangeEventSource streamingSource;
@@ -67,14 +67,14 @@ public class ChangeEventSourceCoordinator {
     public ChangeEventSourceCoordinator(OffsetContext previousOffset, ErrorHandler errorHandler, Class<? extends SourceConnector> connectorType,
                                         CommonConnectorConfig connectorConfig,
                                         ChangeEventSourceFactory changeEventSourceFactory,
-                                        ChangeEventSourceMetricsFactory changeEventSourceMetricsFactory, EventDispatcher<?> eventDispatcher, DatabaseSchema<?> schema) {
-        this.previousOffset = previousOffset;
+                                        ChangeEventSourceMetricsFactory changeEventSourceMetricsFactory, EventDispatcher<?> eventDispatcher, DatabaseSchema<?> schemas) {
+        this.previousOffsets = previousOffset;
         this.errorHandler = errorHandler;
         this.changeEventSourceFactory = changeEventSourceFactory;
         this.changeEventSourceMetricsFactory = changeEventSourceMetricsFactory;
         this.executor = Threads.newSingleThreadExecutor(connectorType, connectorConfig.getLogicalName(), "change-event-source-coordinator");
         this.eventDispatcher = eventDispatcher;
-        this.schema = schema;
+        this.schemas = schemas;
     }
 
     public synchronized <T extends CdcSourceTaskContext> void start(T taskContext, ChangeEventQueueMetrics changeEventQueueMetrics,
@@ -93,8 +93,8 @@ public class ChangeEventSourceCoordinator {
                 ChangeEventSourceContext context = new ChangeEventSourceContextImpl();
                 LOGGER.info("Context created");
 
-                SnapshotChangeEventSource snapshotSource = changeEventSourceFactory.getSnapshotChangeEventSource(previousOffset, snapshotMetrics);
-                CatchUpStreamingResult catchUpStreamingResult = executeCatchUpStreaming(previousOffset, context, snapshotSource);
+                SnapshotChangeEventSource snapshotSource = changeEventSourceFactory.getSnapshotChangeEventSource(previousOffsets, snapshotMetrics);
+                CatchUpStreamingResult catchUpStreamingResult = executeCatchUpStreaming(previousOffsets, context, snapshotSource);
                 if (catchUpStreamingResult.performedCatchUpStreaming) {
                     streamingMetrics.connected(false);
                     commitOffsetLock.lock();
@@ -105,8 +105,8 @@ public class ChangeEventSourceCoordinator {
                 SnapshotResult snapshotResult = snapshotSource.execute(context);
                 LOGGER.info("Snapshot ended with {}", snapshotResult);
 
-                if (snapshotResult.getStatus() == SnapshotResultStatus.COMPLETED || schema.tableInformationComplete()) {
-                    schema.assureNonEmptySchema();
+                if (snapshotResult.getStatus() == SnapshotResultStatus.COMPLETED || schemas.tableInformationComplete()) {
+                    schemas.assureNonEmptySchema();
                 }
 
                 if (running && snapshotResult.isCompletedOrSkipped()) {
