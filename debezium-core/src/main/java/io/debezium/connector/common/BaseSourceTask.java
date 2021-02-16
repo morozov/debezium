@@ -10,6 +10,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
@@ -256,7 +257,7 @@ public abstract class BaseSourceTask extends SourceTask {
      * Loads the connector's persistent offset (if present) via the given loader.
      */
     protected Map<Map<String, ?>, OffsetContext> getPreviousOffsets(OffsetContext.Loader loader) {
-        Collection<Map<String, ?>> partitions = loader.getPartitions();
+        Collection<Map<String, Object>> partitions = new HashSet(loader.getPartitions());
 
         if (!lastOffsets.isEmpty()) {
             Map<Map<String, ?>, OffsetContext> offsetContexts = loader.load(lastOffsets);
@@ -264,27 +265,16 @@ public abstract class BaseSourceTask extends SourceTask {
             return offsetContexts;
         }
 
-        Map<Map<String, ?>, Map<String, ?>> previousOffsets = context.offsetStorageReader()
-                .offsets(partitions);
+        Map<Map<String, Object>, Map<String, Object>> previousOffsets = context.offsetStorageReader()
+                 .offsets(partitions);
 
         if (!previousOffsets.isEmpty()) {
-            Map<Map<String, ?>, OffsetContext> offsetContexts = loader.load(previousOffsets);
+            Map<Map<String, ?>, OffsetContext> offsetContexts = loader.load(new HashMap<>(previousOffsets));
             LOGGER.info("Found previous offset {}", offsetContexts);
             return offsetContexts;
         }
         else {
             return null;
         }
-    }
-
-    private void test1() {
-        Map<String, ?> x = new HashMap<>();
-        x.put("a", "1");
-        x.put("a", 5);
-        // Object c = test2(x);
-    }
-
-    private <T> T test2(Map<String, T> foo) {
-        return foo.get("x");
     }
 }
