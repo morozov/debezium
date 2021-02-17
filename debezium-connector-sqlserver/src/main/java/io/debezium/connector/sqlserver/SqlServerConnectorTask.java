@@ -49,7 +49,7 @@ public class SqlServerConnectorTask extends BaseSourceTask {
     private volatile SqlServerConnection dataConnection;
     private volatile SqlServerConnection metadataConnection;
     private volatile ErrorHandler errorHandler;
-    private volatile SqlServerDatabaseSchema schema;
+    private volatile Map<String, SqlServerDatabaseSchema> schemas;
     private volatile String[] databases;
 
     @Override
@@ -61,6 +61,7 @@ public class SqlServerConnectorTask extends BaseSourceTask {
     public ChangeEventSourceCoordinator start(Configuration config) {
         final Clock clock = Clock.system();
         final SqlServerConnectorConfig connectorConfig = new SqlServerConnectorConfig(config);
+        final SqlServerPartitionContext partitionContext = new SqlServerPartitionContext(connectorConfig, config);
         final TopicSelector<TableId> topicSelector = SqlServerTopicSelector.defaultSelector(connectorConfig);
         final SchemaNameAdjuster schemaNameAdjuster = SchemaNameAdjuster.create(LOGGER);
         final SqlServerValueConverters valueConverters = new SqlServerValueConverters(connectorConfig.getDecimalMode(),
@@ -71,9 +72,6 @@ public class SqlServerConnectorTask extends BaseSourceTask {
                 .withDefault("database.responseBuffering", "adaptive")
                 .withDefault("database.fetchSize", 10_000)
                 .build();
-
-        // TODO: move "databases" to a constant, throw if the array is empty
-        databases = config.getString("databases", "").split(",");
 
         final Configuration jdbcConfig = config.filter(
                 x -> !(x.startsWith(DatabaseHistory.CONFIGURATION_FIELD_PREFIX_STRING) || x.equals(HistorizedRelationalDatabaseConnectorConfig.DATABASE_HISTORY.name())))
@@ -86,15 +84,20 @@ public class SqlServerConnectorTask extends BaseSourceTask {
         catch (SQLException e) {
             throw new ConnectException(e);
         }
-        this.schema = new SqlServerDatabaseSchema(connectorConfig, valueConverters, topicSelector, schemaNameAdjuster);
-        this.schema.initializeStorage();
+
+        for (String databaseName : partitionContext.getDatabaseNames()) {
+            SqlServerDatabaseSchema schema = new SqlServerDatabaseSchema(connectorConfig, valueConverters, topicSelector, schemaNameAdjuster);
+            schema.initializeStorage();
+
+            schemas.put(databaseName, schema);
+        }
 
         final Map<Map<String, ?>, OffsetContext> previousOffsets = getPreviousOffsets(new SqlServerOffsetContext.Loader(connectorConfig, databases));
         if (!previousOffsets.isEmpty()) {
-            schema.recover(previousOffsets);
+            schemas.forEach((database, schema) -> schema.recover(partitionContext.getOffsetForDatabase(database)));
         }
 
-        taskContext = new SqlServerTaskContext(connectorConfig, schema);
+        taskContext = new SqlServerTaskContext(connectorConfig, schemas);
 
         // Set up the task record queue ...
         this.queue = new ChangeEventQueue.Builder<DataChangeEvent>()
@@ -112,7 +115,7 @@ public class SqlServerConnectorTask extends BaseSourceTask {
         final EventDispatcher<TableId> dispatcher = new EventDispatcher<>(
                 connectorConfig,
                 topicSelector,
-                schema,
+                schemas,
                 queue,
                 connectorConfig.getTableFilters().dataCollectionFilter(),
                 DataChangeEvent::new,
@@ -124,10 +127,10 @@ public class SqlServerConnectorTask extends BaseSourceTask {
                 errorHandler,
                 SqlServerConnector.class,
                 connectorConfig,
-                new SqlServerChangeEventSourceFactory(connectorConfig, dataConnection, metadataConnection, errorHandler, dispatcher, clock, schema),
+                new SqlServerChangeEventSourceFactory(connectorConfig, dataConnection, metadataConnection, errorHandler, dispatcher, clock, schemas),
                 new DefaultChangeEventSourceMetricsFactory(),
                 dispatcher,
-                schema);
+                schemas);
 
         coordinator.start(taskContext, this.queue, metadataProvider);
 
@@ -165,8 +168,8 @@ public class SqlServerConnectorTask extends BaseSourceTask {
             LOGGER.error("Exception while closing JDBC metadata connection", e);
         }
 
-        if (schema != null) {
-            schema.close();
+        if (schemas != null) {
+            schemas.close();
         }
     }
 
