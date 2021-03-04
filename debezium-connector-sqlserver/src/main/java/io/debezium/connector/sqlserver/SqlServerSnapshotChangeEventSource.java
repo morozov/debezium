@@ -10,6 +10,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Savepoint;
 import java.sql.Statement;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -42,7 +43,7 @@ public class SqlServerSnapshotChangeEventSource extends RelationalSnapshotChange
     private final SqlServerConnectorConfig connectorConfig;
     private final SqlServerConnection jdbcConnection;
     private final SqlServerDatabaseSchema sqlServerDatabaseSchema;
-    private Map<TableId, SqlServerChangeTable> changeTables;
+    private final Map<SqlServerTaskPartition, Map<TableId, SqlServerChangeTable>> changeTablesByPartition = new HashMap<>();
 
     public SqlServerSnapshotChangeEventSource(SqlServerConnectorConfig connectorConfig, SqlServerConnection jdbcConnection,
                                               SqlServerDatabaseSchema schema, EventDispatcher<TableId> dispatcher, Clock clock,
@@ -79,8 +80,8 @@ public class SqlServerSnapshotChangeEventSource extends RelationalSnapshotChange
     }
 
     @Override
-    protected SnapshotContext<SqlServerOffsetContext> prepare(ChangeEventSourceContext context) throws Exception {
-        return new SqlServerSnapshotContext(jdbcConnection.getRealDatabaseName());
+    protected SnapshotContext<SqlServerOffsetContext> prepare(ChangeEventSourceContext context, SqlServerTaskPartition partition) throws Exception {
+        return new SqlServerSnapshotContext(partition.getDatabaseName());
     }
 
     @Override
@@ -103,7 +104,8 @@ public class SqlServerSnapshotChangeEventSource extends RelationalSnapshotChange
     }
 
     @Override
-    protected void lockTablesForSchemaSnapshot(ChangeEventSourceContext sourceContext, RelationalSnapshotContext<SqlServerOffsetContext> snapshotContext)
+    protected void lockTablesForSchemaSnapshot(ChangeEventSourceContext sourceContext, SqlServerTaskPartition partition,
+                                               RelationalSnapshotContext<SqlServerOffsetContext> snapshotContext)
             throws SQLException, InterruptedException {
         if (connectorConfig.getSnapshotIsolationMode() == SnapshotIsolationMode.READ_UNCOMMITTED) {
             jdbcConnection.connection().setTransactionIsolation(Connection.TRANSACTION_READ_UNCOMMITTED);
@@ -133,7 +135,7 @@ public class SqlServerSnapshotChangeEventSource extends RelationalSnapshotChange
 
                     LOGGER.info("Locking table {}", tableId);
 
-                    String query = String.format("SELECT TOP(0) * FROM [%s].[%s] WITH (TABLOCKX)", tableId.schema(), tableId.table());
+                    String query = String.format("SELECT TOP(0) * FROM [%s].[%s].[%s] WITH (TABLOCKX)", partition.getDatabaseName(), tableId.schema(), tableId.table());
                     statement.executeQuery(query).close();
                 }
             }
@@ -154,21 +156,27 @@ public class SqlServerSnapshotChangeEventSource extends RelationalSnapshotChange
     }
 
     @Override
-    protected void determineSnapshotOffset(RelationalSnapshotContext<SqlServerOffsetContext> ctx, SqlServerOffsetContext previousOffset) throws Exception {
+    protected void determineSnapshotOffset(SqlServerTaskPartition partition, SqlServerOffsetContext previousOffset,
+                                           RelationalSnapshotContext<SqlServerOffsetContext> ctx)
+            throws Exception {
         ctx.offset = new SqlServerOffsetContext(
                 connectorConfig,
-                TxLogPosition.valueOf(jdbcConnection.getMaxLsn()),
+                partition.getSourcePartition(),
+                TxLogPosition.valueOf(jdbcConnection.getMaxLsn(partition.getDatabaseName())),
                 false,
                 false);
     }
 
     @Override
-    protected void readTableStructure(ChangeEventSourceContext sourceContext, RelationalSnapshotContext<SqlServerOffsetContext> snapshotContext,
-                                      SqlServerOffsetContext offsetContext)
+    protected void readTableStructure(ChangeEventSourceContext sourceContext, SqlServerTaskPartition partition,
+                                      SqlServerOffsetContext offsetContext,
+                                      RelationalSnapshotContext<SqlServerOffsetContext> snapshotContext)
             throws SQLException, InterruptedException {
         Set<String> schemas = snapshotContext.capturedTables.stream()
                 .map(TableId::schema)
                 .collect(Collectors.toSet());
+
+        Map<TableId, SqlServerChangeTable> changeTables = new HashMap<>();
 
         // reading info only for the schemas we're interested in as per the set of captured tables;
         // while the passed table name filter alone would skip all non-included tables, reading the schema
@@ -188,7 +196,7 @@ public class SqlServerSnapshotChangeEventSource extends RelationalSnapshotChange
                     false);
 
             // Save changeTables for sql select later.
-            changeTables = jdbcConnection.listOfChangeTables().stream()
+            changeTables = jdbcConnection.listOfChangeTables(partition.getDatabaseName()).stream()
                     .collect(Collectors.toMap(SqlServerChangeTable::getSourceTableId, changeTable -> changeTable,
                             (changeTable1, changeTable2) -> changeTable1.getStartLsn().compareTo(changeTable2.getStartLsn()) > 0
                                     ? changeTable1
@@ -210,6 +218,8 @@ public class SqlServerSnapshotChangeEventSource extends RelationalSnapshotChange
                 }
             });
         }
+
+        changeTablesByPartition.put(partition, changeTables);
     }
 
     @Override
@@ -245,21 +255,22 @@ public class SqlServerSnapshotChangeEventSource extends RelationalSnapshotChange
      * @return a valid query string
      */
     @Override
-    protected Optional<String> getSnapshotSelect(RelationalSnapshotContext<SqlServerOffsetContext> snapshotContext, TableId tableId) {
-        String modifiedColumns = checkExcludedColumns(tableId);
-        return Optional.of(String.format("SELECT %s FROM [%s].[%s]", modifiedColumns, tableId.schema(), tableId.table()));
+    protected Optional<String> getSnapshotSelect(SqlServerTaskPartition partition, RelationalSnapshotContext<SqlServerOffsetContext> snapshotContext, TableId tableId) {
+        String modifiedColumns = checkExcludedColumns(partition, tableId);
+        return Optional.of(String.format("SELECT %s FROM [%s].[%s].[%s]", modifiedColumns, partition.getDatabaseName(), tableId.schema(), tableId.table()));
     }
 
     @Override
-    protected String enhanceOverriddenSelect(RelationalSnapshotContext<SqlServerOffsetContext> snapshotContext, String overriddenSelect, TableId tableId) {
-        String modifiedColumns = checkExcludedColumns(tableId);
+    protected String enhanceOverriddenSelect(SqlServerTaskPartition partition, RelationalSnapshotContext<SqlServerOffsetContext> snapshotContext,
+                                             String overriddenSelect, TableId tableId) {
+        String modifiedColumns = checkExcludedColumns(partition, tableId);
         return overriddenSelect.replaceAll("\\*", modifiedColumns);
     }
 
-    private String checkExcludedColumns(TableId tableId) {
+    private String checkExcludedColumns(SqlServerTaskPartition partition, TableId tableId) {
         Table table = sqlServerDatabaseSchema.tableFor(tableId);
         List<String> columnNames = table.retrieveColumnNames().stream()
-                .filter(columnName -> filterChangeTableColumns(tableId, columnName))
+                .filter(columnName -> filterChangeTableColumns(partition, tableId, columnName))
                 .filter(columnName -> connectorConfig.getColumnFilter().matches(tableId.catalog(), tableId.schema(), tableId.table(), columnName))
                 .collect(Collectors.toList());
 
@@ -281,8 +292,8 @@ public class SqlServerSnapshotChangeEventSource extends RelationalSnapshotChange
                 }).collect(Collectors.joining(","));
     }
 
-    private boolean filterChangeTableColumns(TableId tableId, String columnName) {
-        SqlServerChangeTable changeTable = changeTables.get(tableId);
+    private boolean filterChangeTableColumns(SqlServerTaskPartition partition, TableId tableId, String columnName) {
+        SqlServerChangeTable changeTable = changeTablesByPartition.get(partition).get(tableId);
         if (changeTable != null) {
             return changeTable.getCapturedColumns().contains(columnName);
         }

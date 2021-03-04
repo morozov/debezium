@@ -28,7 +28,7 @@ public class SqlServerOffsetContext implements OffsetContext {
 
     private final Schema sourceInfoSchema;
     private final SourceInfo sourceInfo;
-    private final Map<String, String> partition;
+    private final Map<String, ?> partition;
     private boolean snapshotCompleted;
     private final TransactionContext transactionContext;
     private final IncrementalSnapshotContext<TableId> incrementalSnapshotContext;
@@ -38,20 +38,16 @@ public class SqlServerOffsetContext implements OffsetContext {
      */
     private long eventSerialNo;
 
-    public SqlServerOffsetContext(SqlServerConnectorConfig connectorConfig, TxLogPosition position, boolean snapshot,
+    public SqlServerOffsetContext(SqlServerConnectorConfig connectorConfig, Map<String, ?> partition, TxLogPosition position,
+                                  boolean snapshot,
                                   boolean snapshotCompleted, long eventSerialNo, TransactionContext transactionContext,
                                   IncrementalSnapshotContext<TableId> incrementalSnapshotContext) {
-        // Now this effectively duplicates {@link io.debezium.connector.common.TaskPartition},
-        // probably worth moving out of from the offset context
-        partition = Collect.hashMapOf(
-                SERVER_PARTITION_KEY, connectorConfig.getLogicalName(),
-                // TODO: this should be passed explicitly as an argument
-                DATABASE_PARTITION_KEY, connectorConfig.getDatabaseName());
         sourceInfo = new SourceInfo(connectorConfig);
-
         sourceInfo.setCommitLsn(position.getCommitLsn());
         sourceInfo.setChangeLsn(position.getInTxLsn());
         sourceInfoSchema = sourceInfo.schema();
+
+        this.partition = partition;
 
         this.snapshotCompleted = snapshotCompleted;
         if (this.snapshotCompleted) {
@@ -65,8 +61,9 @@ public class SqlServerOffsetContext implements OffsetContext {
         this.incrementalSnapshotContext = incrementalSnapshotContext;
     }
 
-    public SqlServerOffsetContext(SqlServerConnectorConfig connectorConfig, TxLogPosition position, boolean snapshot, boolean snapshotCompleted) {
-        this(connectorConfig, position, snapshot, snapshotCompleted, 1, new TransactionContext(), new IncrementalSnapshotContext<>());
+    public SqlServerOffsetContext(SqlServerConnectorConfig connectorConfig, Map<String, ?> partition, TxLogPosition position,
+                                  boolean snapshot, boolean snapshotCompleted) {
+        this(connectorConfig, partition, position, snapshot, snapshotCompleted, 1, new TransactionContext(), new IncrementalSnapshotContext<>());
     }
 
     @Override
@@ -160,7 +157,7 @@ public class SqlServerOffsetContext implements OffsetContext {
         }
 
         @Override
-        public SqlServerOffsetContext load(Map<String, ?> offset) {
+        public SqlServerOffsetContext load(Map<String, ?> partition, Map<String, ?> offset) {
             final Lsn changeLsn = Lsn.valueOf((String) offset.get(SourceInfo.CHANGE_LSN_KEY));
             final Lsn commitLsn = Lsn.valueOf((String) offset.get(SourceInfo.COMMIT_LSN_KEY));
             boolean snapshot = Boolean.TRUE.equals(offset.get(SourceInfo.SNAPSHOT_KEY));
@@ -172,7 +169,7 @@ public class SqlServerOffsetContext implements OffsetContext {
                 eventSerialNo = Long.valueOf(0);
             }
 
-            return new SqlServerOffsetContext(connectorConfig, TxLogPosition.valueOf(commitLsn, changeLsn), snapshot, snapshotCompleted, eventSerialNo,
+            return new SqlServerOffsetContext(connectorConfig, partition, TxLogPosition.valueOf(commitLsn, changeLsn), snapshot, snapshotCompleted, eventSerialNo,
                     TransactionContext.load(offset), IncrementalSnapshotContext.load(offset, TableId.class));
         }
     }

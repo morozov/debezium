@@ -380,13 +380,13 @@ public class TestHelper {
         }
     }
 
-    public static void waitForMaxLsnAvailable(SqlServerConnection connection) throws Exception {
+    public static void waitForMaxLsnAvailable(SqlServerConnection connection, String databaseName) throws Exception {
         try {
             Awaitility.await("Max LSN not available")
                     .atMost(60, TimeUnit.SECONDS)
                     .pollDelay(Duration.ofSeconds(0))
                     .pollInterval(Duration.ofMillis(100))
-                    .until(() -> connection.getMaxLsn().isAvailable());
+                    .until(() -> connection.getMaxLsn(databaseName).isAvailable());
         }
         catch (ConditionTimeoutException e) {
             throw new IllegalArgumentException("A max LSN was not available", e);
@@ -413,23 +413,24 @@ public class TestHelper {
      */
     public static void waitForCdcRecord(SqlServerConnection connection, String tableName, CdcRecordHandler handler) {
         try {
+            String databaseName = connection.config().getDatabase();
             Awaitility.await("Checking for expected record in CDC table for " + tableName)
                     .atMost(60, TimeUnit.SECONDS)
                     .pollDelay(Duration.ofSeconds(0))
                     .pollInterval(Duration.ofMillis(100)).until(() -> {
-                        if (!connection.getMaxLsn().isAvailable()) {
+                        if (!connection.getMaxLsn(databaseName).isAvailable()) {
                             return false;
                         }
 
-                        for (SqlServerChangeTable ct : connection.listOfChangeTables()) {
+                        for (SqlServerChangeTable ct : connection.listOfChangeTables(databaseName)) {
                             final String ctTableName = ct.getChangeTableId().table();
                             if (ctTableName.endsWith("dbo_" + connection.getNameOfChangeTable(tableName))) {
                                 try {
-                                    final Lsn minLsn = connection.getMinLsn(ctTableName);
-                                    final Lsn maxLsn = connection.getMaxLsn();
+                                    final Lsn minLsn = connection.getMinLsn(databaseName, ctTableName);
+                                    final Lsn maxLsn = connection.getMaxLsn(databaseName);
                                     final CdcRecordFoundBlockingMultiResultSetConsumer consumer = new CdcRecordFoundBlockingMultiResultSetConsumer(handler);
                                     SqlServerChangeTable[] tables = Collections.singletonList(ct).toArray(new SqlServerChangeTable[]{});
-                                    connection.getChangesForTables(tables, minLsn, maxLsn, consumer);
+                                    connection.getChangesForTables(tables, minLsn, maxLsn, consumer, databaseName);
                                     return consumer.isFound();
                                 }
                                 catch (Exception e) {
@@ -468,23 +469,24 @@ public class TestHelper {
 
     public static void waitForCdcRecord(SqlServerConnection connection, String tableName, String captureInstanceName, CdcRecordHandler handler) {
         try {
+            String databaseName = connection.config().getDatabase();
             Awaitility.await("Checking for expected record in CDC table for " + tableName)
                     .atMost(30, TimeUnit.SECONDS)
                     .pollDelay(Duration.ofSeconds(0))
                     .pollInterval(Duration.ofMillis(100)).until(() -> {
-                        if (!connection.getMaxLsn().isAvailable()) {
+                        if (!connection.getMaxLsn(databaseName).isAvailable()) {
                             return false;
                         }
 
-                        for (SqlServerChangeTable ct : connection.listOfChangeTables()) {
+                        for (SqlServerChangeTable ct : connection.listOfChangeTables(databaseName)) {
                             final String ctTableName = ct.getChangeTableId().table();
                             if (ctTableName.endsWith(connection.getNameOfChangeTable(captureInstanceName))) {
                                 try {
-                                    final Lsn minLsn = connection.getMinLsn(ctTableName);
-                                    final Lsn maxLsn = connection.getMaxLsn();
+                                    final Lsn minLsn = connection.getMinLsn(databaseName, ctTableName);
+                                    final Lsn maxLsn = connection.getMaxLsn(databaseName);
                                     final CdcRecordFoundBlockingMultiResultSetConsumer consumer = new CdcRecordFoundBlockingMultiResultSetConsumer(handler);
                                     SqlServerChangeTable[] tables = Collections.singletonList(ct).toArray(new SqlServerChangeTable[]{});
-                                    connection.getChangesForTables(tables, minLsn, maxLsn, consumer);
+                                    connection.getChangesForTables(tables, minLsn, maxLsn, consumer, databaseName);
                                     return consumer.isFound();
                                 }
                                 catch (Exception e) {

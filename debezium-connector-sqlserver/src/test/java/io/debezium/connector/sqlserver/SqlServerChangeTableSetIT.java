@@ -803,8 +803,9 @@ public class SqlServerChangeTableSetIT extends AbstractConnectorTest {
         assertConnectorIsRunning();
         TestHelper.waitForSnapshotToBeCompleted();
 
+        String databaseName = connection.config().getDatabase();
         TestHelper.waitForStreamingStarted();
-        TestHelper.waitForMaxLsnAvailable(connection);
+        TestHelper.waitForMaxLsnAvailable(connection, databaseName);
 
         connection.execute("ALTER TABLE dbo.tableb ADD DEFAULT ('default_value') FOR colb");
         TestHelper.enableTableCdc(connection, "tableb", "after_change");

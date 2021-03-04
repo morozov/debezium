@@ -148,17 +148,18 @@ public class TransactionMetadataIT extends AbstractConnectorTest {
             stopConnector();
             connection.execute("INSERT INTO tablea VALUES(-1, '-a')");
 
+            String databaseName = connection.config().getDatabase();
             Awaitility.await().atMost(30, TimeUnit.SECONDS).until(() -> {
-                if (!connection.getMaxLsn().isAvailable()) {
+                if (!connection.getMaxLsn(databaseName).isAvailable()) {
                     return false;
                 }
 
-                for (SqlServerChangeTable ct : connection.listOfChangeTables()) {
+                for (SqlServerChangeTable ct : connection.listOfChangeTables(databaseName)) {
                     final String tableName = ct.getChangeTableId().table();
                     if (tableName.endsWith("dbo_" + connection.getNameOfChangeTable("tablea"))) {
                         try {
-                            final Lsn minLsn = connection.getMinLsn(tableName);
-                            final Lsn maxLsn = connection.getMaxLsn();
+                            final Lsn minLsn = connection.getMinLsn(databaseName, tableName);
+                            final Lsn maxLsn = connection.getMaxLsn(databaseName);
                             final AtomicReference<Boolean> found = new AtomicReference<>(false);
                             SqlServerChangeTable[] tables = Collections.singletonList(ct).toArray(new SqlServerChangeTable[]{});
                             connection.getChangesForTables(tables, minLsn, maxLsn, resultsets -> {
@@ -169,7 +170,7 @@ public class TransactionMetadataIT extends AbstractConnectorTest {
                                         break;
                                     }
                                 }
-                            });
+                            }, databaseName);
                             return found.get();
                         }
                         catch (Exception e) {
