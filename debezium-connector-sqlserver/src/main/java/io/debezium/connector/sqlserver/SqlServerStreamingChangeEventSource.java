@@ -76,7 +76,7 @@ public class SqlServerStreamingChangeEventSource implements StreamingChangeEvent
      */
     private final SqlServerConnection metadataConnection;
 
-    private final EventDispatcher<TableId> dispatcher;
+    private final EventDispatcher<SqlServerTaskPartition, SqlServerOffsetContext, TableId> dispatcher;
     private final ErrorHandler errorHandler;
     private final Clock clock;
     private final SqlServerDatabaseSchema schema;
@@ -86,7 +86,9 @@ public class SqlServerStreamingChangeEventSource implements StreamingChangeEvent
     private final ElapsedTimeStrategy pauseBetweenCommits;
 
     public SqlServerStreamingChangeEventSource(SqlServerConnectorConfig connectorConfig, SqlServerConnection dataConnection,
-                                               SqlServerConnection metadataConnection, EventDispatcher<TableId> dispatcher, ErrorHandler errorHandler, Clock clock,
+                                               SqlServerConnection metadataConnection,
+                                               EventDispatcher<SqlServerTaskPartition, SqlServerOffsetContext, TableId> dispatcher, ErrorHandler errorHandler,
+                                               Clock clock,
                                                SqlServerDatabaseSchema schema) {
         this.connectorConfig = connectorConfig;
         this.dataConnection = dataConnection;

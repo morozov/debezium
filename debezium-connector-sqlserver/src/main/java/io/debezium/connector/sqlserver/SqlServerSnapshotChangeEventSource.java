@@ -46,7 +46,8 @@ public class SqlServerSnapshotChangeEventSource extends RelationalSnapshotChange
     private final Map<SqlServerTaskPartition, Map<TableId, SqlServerChangeTable>> changeTablesByPartition = new HashMap<>();
 
     public SqlServerSnapshotChangeEventSource(SqlServerConnectorConfig connectorConfig, SqlServerConnection jdbcConnection,
-                                              SqlServerDatabaseSchema schema, EventDispatcher<TableId> dispatcher, Clock clock,
+                                              SqlServerDatabaseSchema schema, EventDispatcher<SqlServerTaskPartition, SqlServerOffsetContext, TableId> dispatcher,
+                                              Clock clock,
                                               SnapshotProgressListener snapshotProgressListener) {
         super(connectorConfig, jdbcConnection, schema, dispatcher, clock, snapshotProgressListener);
         this.connectorConfig = connectorConfig;

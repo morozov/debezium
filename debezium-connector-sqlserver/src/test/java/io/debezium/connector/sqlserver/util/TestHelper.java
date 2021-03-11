@@ -209,14 +209,18 @@ public class TestHelper {
         }
     }
 
-    public static SqlServerConnection adminConnection() {
-        return new SqlServerConnection(TestHelper.adminJdbcConfig(), Clock.system(), SourceTimestampMode.getDefaultMode(),
+    public static SqlServerConnection adminConnection() throws SQLException {
+        SqlServerConnection connection = new SqlServerConnection(TestHelper.adminJdbcConfig(), Clock.system(), SourceTimestampMode.getDefaultMode(),
                 new SqlServerValueConverters(JdbcValueConverters.DecimalMode.PRECISE, TemporalPrecisionMode.ADAPTIVE, null));
+        connection.execute("USE " + connection.config().getDatabase());
+        return connection;
     }
 
-    public static SqlServerConnection testConnection() {
-        return new SqlServerConnection(TestHelper.defaultJdbcConfig(), Clock.system(), SourceTimestampMode.getDefaultMode(),
+    public static SqlServerConnection testConnection() throws SQLException {
+        SqlServerConnection connection = new SqlServerConnection(TestHelper.defaultJdbcConfig(), Clock.system(), SourceTimestampMode.getDefaultMode(),
                 new SqlServerValueConverters(JdbcValueConverters.DecimalMode.PRECISE, TemporalPrecisionMode.ADAPTIVE, null));
+        connection.execute("USE " + connection.config().getDatabase());
+        return connection;
     }
 
     /**

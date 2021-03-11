@@ -82,8 +82,7 @@ public class SqlServerConnection extends JdbcConnection {
 
     private static final int CHANGE_TABLE_DATA_COLUMN_OFFSET = 5;
 
-    private static final String URL_PATTERN = "jdbc:sqlserver://${" + JdbcConfiguration.HOSTNAME + "}:${" + JdbcConfiguration.PORT + "};databaseName=${"
-            + JdbcConfiguration.DATABASE + "}";
+    private static final String URL_PATTERN = "jdbc:sqlserver://${" + JdbcConfiguration.HOSTNAME + "}:${" + JdbcConfiguration.PORT + "}";
     private static final ConnectionFactory FACTORY = JdbcConnection.patternBasedFactory(URL_PATTERN,
             SQLServerDriver.class.getName(),
             SqlServerConnection.class.getClassLoader(),

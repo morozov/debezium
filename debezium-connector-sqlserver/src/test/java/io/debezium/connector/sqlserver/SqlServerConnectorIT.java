@@ -2552,8 +2552,8 @@ public class SqlServerConnectorIT extends AbstractConnectorTest {
         }
 
         @Override
-        public void recover(Map<String, ?> source, Map<String, ?> position, Tables schema, DdlParser ddlParser) {
-            delegate.recover(source, position, schema, ddlParser);
+        public void recover(Map<Map<String, ?>, Map<String, ?>> offsets, Tables schema, DdlParser ddlParser) {
+            delegate.recover(offsets, schema, ddlParser);
         }
 
         @Override

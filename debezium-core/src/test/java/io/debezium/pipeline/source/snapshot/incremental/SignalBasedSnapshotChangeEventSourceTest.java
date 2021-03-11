@@ -43,7 +43,7 @@ public class SignalBasedSnapshotChangeEventSourceTest {
 
     @Test
     public void testBuildQuery() {
-        final SignalBasedIncrementalSnapshotChangeEventSource<TableId> source = new SignalBasedIncrementalSnapshotChangeEventSource<>(
+        final SignalBasedIncrementalSnapshotChangeEventSource<?, ?, TableId> source = new SignalBasedIncrementalSnapshotChangeEventSource<>(
                 config(), new JdbcConnection(config().getConfig(), config -> null), null, null, SnapshotProgressListener.NO_OP, DataChangeEventListener.NO_OP);
         final IncrementalSnapshotContext<TableId> context = new IncrementalSnapshotContext<>();
         source.setContext(context);
@@ -62,7 +62,7 @@ public class SignalBasedSnapshotChangeEventSourceTest {
 
     @Test
     public void testMaxQuery() {
-        final SignalBasedIncrementalSnapshotChangeEventSource<TableId> source = new SignalBasedIncrementalSnapshotChangeEventSource<>(
+        final SignalBasedIncrementalSnapshotChangeEventSource<?, ?, TableId> source = new SignalBasedIncrementalSnapshotChangeEventSource<>(
                 config(), new JdbcConnection(config().getConfig(), config -> null), null, null, SnapshotProgressListener.NO_OP, DataChangeEventListener.NO_OP);
         final Column pk1 = Column.editor().name("pk1").create();
         final Column pk2 = Column.editor().name("pk2").create();

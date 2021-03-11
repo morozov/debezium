@@ -23,6 +23,7 @@ import org.slf4j.LoggerFactory;
 import io.debezium.DebeziumException;
 import io.debezium.annotation.NotThreadSafe;
 import io.debezium.config.CommonConnectorConfig;
+import io.debezium.connector.common.TaskPartition;
 import io.debezium.jdbc.JdbcConnection;
 import io.debezium.pipeline.EventDispatcher;
 import io.debezium.pipeline.source.spi.DataChangeEventListener;
@@ -45,7 +46,8 @@ import io.debezium.util.Threads;
 import io.debezium.util.Threads.Timer;
 
 @NotThreadSafe
-public class SignalBasedIncrementalSnapshotChangeEventSource<T extends DataCollectionId> implements IncrementalSnapshotChangeEventSource<T> {
+public class SignalBasedIncrementalSnapshotChangeEventSource<P extends TaskPartition, O extends OffsetContext, T extends DataCollectionId>
+        implements IncrementalSnapshotChangeEventSource<P, O, T> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SignalBasedIncrementalSnapshotChangeEventSource.class);
 
@@ -78,7 +80,7 @@ public class SignalBasedIncrementalSnapshotChangeEventSource<T extends DataColle
 
     @Override
     @SuppressWarnings("unchecked")
-    public void closeWindow(String id, EventDispatcher<T> dispatcher, OffsetContext offsetContext) throws InterruptedException {
+    public void closeWindow(String id, EventDispatcher<P, O, T> dispatcher, OffsetContext offsetContext) throws InterruptedException {
         context = (IncrementalSnapshotContext<T>) offsetContext.getIncrementalSnapshotContext();
         if (!context.closeWindow(id)) {
             return;
@@ -93,7 +95,7 @@ public class SignalBasedIncrementalSnapshotChangeEventSource<T extends DataColle
         readChunk();
     }
 
-    protected void sendEvent(EventDispatcher<T> dispatcher, OffsetContext offsetContext, Object[] row) throws InterruptedException {
+    protected void sendEvent(EventDispatcher<P, O, T> dispatcher, OffsetContext offsetContext, Object[] row) throws InterruptedException {
         context.sendEvent(keyFromRow(row));
         offsetContext.event((T) context.currentDataCollectionId(), clock.currentTimeAsInstant());
         dispatcher.dispatchSnapshotEvent((T) context.currentDataCollectionId(),

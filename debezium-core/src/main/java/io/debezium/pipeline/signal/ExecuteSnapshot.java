@@ -11,9 +11,11 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.debezium.connector.common.TaskPartition;
 import io.debezium.document.Array;
 import io.debezium.pipeline.EventDispatcher;
 import io.debezium.pipeline.signal.Signal.Payload;
+import io.debezium.pipeline.spi.OffsetContext;
 import io.debezium.schema.DataCollectionId;
 
 /**
@@ -36,9 +38,9 @@ public class ExecuteSnapshot implements Signal.Action {
         INCREMENTAL
     }
 
-    private final EventDispatcher<? extends DataCollectionId> dispatcher;
+    private final EventDispatcher<? extends TaskPartition, ? extends OffsetContext, ? extends DataCollectionId> dispatcher;
 
-    public ExecuteSnapshot(EventDispatcher<? extends DataCollectionId> dispatcher) {
+    public ExecuteSnapshot(EventDispatcher<? extends TaskPartition, ? extends OffsetContext, ? extends DataCollectionId> dispatcher) {
         this.dispatcher = dispatcher;
     }
 

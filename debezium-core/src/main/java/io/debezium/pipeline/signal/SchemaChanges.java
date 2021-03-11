@@ -9,9 +9,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.debezium.DebeziumException;
+import io.debezium.connector.common.TaskPartition;
 import io.debezium.document.Array;
 import io.debezium.pipeline.EventDispatcher;
 import io.debezium.pipeline.signal.Signal.Payload;
+import io.debezium.pipeline.spi.OffsetContext;
 import io.debezium.relational.RelationalDatabaseSchema;
 import io.debezium.relational.TableId;
 import io.debezium.relational.history.JsonTableChangeSerializer;
@@ -21,7 +23,7 @@ import io.debezium.schema.DataCollectionId;
 import io.debezium.schema.SchemaChangeEvent;
 import io.debezium.schema.SchemaChangeEvent.SchemaChangeEventType;
 
-public class SchemaChanges implements Signal.Action {
+public class SchemaChanges<P extends TaskPartition, O extends OffsetContext> implements Signal.Action {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SchemaChanges.class);
 
@@ -33,13 +35,13 @@ public class SchemaChanges implements Signal.Action {
 
     private final JsonTableChangeSerializer serializer;
     private final boolean useCatalogBeforeSchema;
-    private final EventDispatcher<TableId> dispatcher;
+    private final EventDispatcher<P, O, TableId> dispatcher;
 
     @SuppressWarnings("unchecked")
-    public SchemaChanges(EventDispatcher<? extends DataCollectionId> dispatcher, boolean useCatalogBeforeSchema) {
+    public SchemaChanges(EventDispatcher<P, O, ? extends DataCollectionId> dispatcher, boolean useCatalogBeforeSchema) {
         serializer = new JsonTableChangeSerializer();
         this.useCatalogBeforeSchema = useCatalogBeforeSchema;
-        this.dispatcher = (EventDispatcher<TableId>) dispatcher;
+        this.dispatcher = (EventDispatcher<P, O, TableId>) dispatcher;
     }
 
     @Override

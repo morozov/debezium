@@ -26,12 +26,13 @@ public class SqlServerChangeEventSourceFactory implements ChangeEventSourceFacto
     private final SqlServerConnection dataConnection;
     private final SqlServerConnection metadataConnection;
     private final ErrorHandler errorHandler;
-    private final EventDispatcher<TableId> dispatcher;
+    private final EventDispatcher<SqlServerTaskPartition, SqlServerOffsetContext, TableId> dispatcher;
     private final Clock clock;
     private final SqlServerDatabaseSchema schema;
 
     public SqlServerChangeEventSourceFactory(SqlServerConnectorConfig configuration, SqlServerConnection dataConnection, SqlServerConnection metadataConnection,
-                                             ErrorHandler errorHandler, EventDispatcher<TableId> dispatcher, Clock clock, SqlServerDatabaseSchema schema) {
+                                             ErrorHandler errorHandler, EventDispatcher<SqlServerTaskPartition, SqlServerOffsetContext, TableId> dispatcher, Clock clock,
+                                             SqlServerDatabaseSchema schema) {
         this.configuration = configuration;
         this.dataConnection = dataConnection;
         this.metadataConnection = metadataConnection;
@@ -60,11 +61,11 @@ public class SqlServerChangeEventSourceFactory implements ChangeEventSourceFacto
     }
 
     @Override
-    public Optional<IncrementalSnapshotChangeEventSource<? extends DataCollectionId>> getIncrementalSnapshotChangeEventSource(
-                                                                                                                              SqlServerOffsetContext offsetContext,
-                                                                                                                              SnapshotProgressListener snapshotProgressListener,
-                                                                                                                              DataChangeEventListener dataChangeEventListener) {
-        final SignalBasedIncrementalSnapshotChangeEventSource<TableId> incrementalSnapshotChangeEventSource = new SignalBasedIncrementalSnapshotChangeEventSource<TableId>(
+    public Optional<IncrementalSnapshotChangeEventSource<SqlServerTaskPartition, SqlServerOffsetContext, ? extends DataCollectionId>> getIncrementalSnapshotChangeEventSource(
+                                                                                                                                                                              SqlServerOffsetContext offsetContext,
+                                                                                                                                                                              SnapshotProgressListener snapshotProgressListener,
+                                                                                                                                                                              DataChangeEventListener dataChangeEventListener) {
+        final SignalBasedIncrementalSnapshotChangeEventSource<SqlServerTaskPartition, SqlServerOffsetContext, TableId> incrementalSnapshotChangeEventSource = new SignalBasedIncrementalSnapshotChangeEventSource<>(
                 configuration,
                 dataConnection,
                 schema,

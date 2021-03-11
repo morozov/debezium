@@ -26,6 +26,7 @@ import io.debezium.config.CommonConnectorConfig;
 import io.debezium.config.Configuration;
 import io.debezium.connector.SnapshotRecord;
 import io.debezium.connector.base.ChangeEventQueue;
+import io.debezium.connector.common.TaskPartition;
 import io.debezium.data.Envelope;
 import io.debezium.data.Envelope.Operation;
 import io.debezium.heartbeat.Heartbeat;
@@ -61,13 +62,13 @@ import io.debezium.util.SchemaNameAdjuster;
  *
  * @author Gunnar Morling
  */
-public class EventDispatcher<T extends DataCollectionId> {
+public class EventDispatcher<P extends TaskPartition, O extends OffsetContext, T extends DataCollectionId> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(EventDispatcher.class);
 
     private final TopicSelector<T> topicSelector;
     private final DatabaseSchema<T> schema;
-    private final HistorizedDatabaseSchema<T> historizedSchema;
+    private final HistorizedDatabaseSchema<P, O, T> historizedSchema;
     private final ChangeEventQueue<DataChangeEvent> queue;
     private final DataCollectionFilter<T> filter;
     private final ChangeEventCreator changeEventCreator;
@@ -84,7 +85,7 @@ public class EventDispatcher<T extends DataCollectionId> {
     private final Schema schemaChangeValueSchema;
     private final TableChangesSerializer<List<Struct>> tableChangesSerializer = new ConnectTableChangeSerializer();
     private final Signal signal;
-    private IncrementalSnapshotChangeEventSource<T> incrementalSnapshotChangeEventSource;
+    private IncrementalSnapshotChangeEventSource<P, O, T> incrementalSnapshotChangeEventSource;
 
     /**
      * Change event receiver for events dispatched from a streaming change event source.
@@ -115,7 +116,7 @@ public class EventDispatcher<T extends DataCollectionId> {
         this.topicSelector = topicSelector;
         this.schema = schema;
         this.historizedSchema = schema instanceof HistorizedDatabaseSchema
-                ? (HistorizedDatabaseSchema<T>) schema
+                ? (HistorizedDatabaseSchema<P, O, T>) schema
                 : null;
         this.queue = queue;
         this.filter = filter;
@@ -547,8 +548,8 @@ public class EventDispatcher<T extends DataCollectionId> {
      *
      * @param eventListener
      */
-    public void setIncrementalSnapshotChangeEventSource(Optional<IncrementalSnapshotChangeEventSource<? extends DataCollectionId>> incrementalSnapshotChangeEventSource) {
-        this.incrementalSnapshotChangeEventSource = (IncrementalSnapshotChangeEventSource<T>) incrementalSnapshotChangeEventSource.orElse(null);
+    public void setIncrementalSnapshotChangeEventSource(Optional<IncrementalSnapshotChangeEventSource<P, O, ? extends DataCollectionId>> incrementalSnapshotChangeEventSource) {
+        this.incrementalSnapshotChangeEventSource = (IncrementalSnapshotChangeEventSource<P, O, T>) incrementalSnapshotChangeEventSource.orElse(null);
     }
 
     /**
@@ -567,11 +568,11 @@ public class EventDispatcher<T extends DataCollectionId> {
         return schema;
     }
 
-    public HistorizedDatabaseSchema<T> getHistorizedSchema() {
+    public HistorizedDatabaseSchema<P, O, T> getHistorizedSchema() {
         return historizedSchema;
     }
 
-    public IncrementalSnapshotChangeEventSource<T> getIncrementalSnapshotChangeEventSource() {
+    public IncrementalSnapshotChangeEventSource<P, O, T> getIncrementalSnapshotChangeEventSource() {
         return incrementalSnapshotChangeEventSource;
     }
 }

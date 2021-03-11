@@ -92,13 +92,7 @@ public class SqlServerConnectorTask extends BaseSourceTask<SqlServerTaskPartitio
 
         schema = new SqlServerDatabaseSchema(connectorConfig, valueConverters, topicSelector, schemaNameAdjuster);
         schema.initializeStorage();
-
-        // TODO: recover from all partitions at once
-        for (SqlServerOffsetContext offsetContext : taskOffsetContext.getOffsets().values()) {
-            if (offsetContext != null) {
-                schema.recover(offsetContext);
-            }
-        }
+        schema.recover(taskOffsetContext);
 
         taskContext = new SqlServerTaskContext(connectorConfig, schema);
 
@@ -115,7 +109,7 @@ public class SqlServerConnectorTask extends BaseSourceTask<SqlServerTaskPartitio
 
         final SqlServerEventMetadataProvider metadataProvider = new SqlServerEventMetadataProvider();
 
-        final EventDispatcher<TableId> dispatcher = new EventDispatcher<>(
+        final EventDispatcher<SqlServerTaskPartition, SqlServerOffsetContext, TableId> dispatcher = new EventDispatcher<>(
                 connectorConfig,
                 topicSelector,
                 schema,
