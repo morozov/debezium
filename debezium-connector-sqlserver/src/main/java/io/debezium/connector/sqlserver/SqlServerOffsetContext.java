@@ -8,6 +8,9 @@ package io.debezium.connector.sqlserver;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Queue;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.Struct;
@@ -38,6 +41,15 @@ public class SqlServerOffsetContext implements OffsetContext {
      */
     private long eventSerialNo;
 
+    Queue<SqlServerChangeTable> schemaChangeCheckpoints;
+
+    private AtomicReference<SqlServerChangeTable[]> tablesSlot;
+    private TxLogPosition lastProcessedPositionOnStart;
+    private long lastProcessedEventSerialNoOnStart;
+    private TxLogPosition lastProcessedPosition;
+    private AtomicBoolean changesStoppedBeingMonotonic;
+    boolean shouldIncreaseFromLsn = false;
+
     public SqlServerOffsetContext(SqlServerConnectorConfig connectorConfig, Map<String, ?> partition, TxLogPosition position,
                                   boolean snapshot,
                                   boolean snapshotCompleted, long eventSerialNo, TransactionContext transactionContext,
@@ -59,6 +71,13 @@ public class SqlServerOffsetContext implements OffsetContext {
         this.eventSerialNo = eventSerialNo;
         this.transactionContext = transactionContext;
         this.incrementalSnapshotContext = incrementalSnapshotContext;
+
+        this.schemaChangeCheckpoints = null;
+        this.lastProcessedPositionOnStart = null;
+        this.lastProcessedEventSerialNoOnStart = 0;
+        this.lastProcessedPosition = null;
+        this.changesStoppedBeingMonotonic = null;
+        this.shouldIncreaseFromLsn = false;
     }
 
     public SqlServerOffsetContext(SqlServerConnectorConfig connectorConfig, Map<String, ?> partition, TxLogPosition position,
@@ -210,4 +229,48 @@ public class SqlServerOffsetContext implements OffsetContext {
     public IncrementalSnapshotContext<?> getIncrementalSnapshotContext() {
         return incrementalSnapshotContext;
     }
+
+    public void saveStreamingExecutionContext(Queue<SqlServerChangeTable> schemaChangeCheckpoints,
+                                              AtomicReference<SqlServerChangeTable[]> tablesSlot,
+                                              TxLogPosition lastProcessedPositionOnStart,
+                                              long lastProcessedEventSerialNoOnStart,
+                                              TxLogPosition lastProcessedPosition,
+                                              AtomicBoolean changesStoppedBeingMonotonic,
+                                              boolean shouldIncreaseFromLsn) {
+        this.schemaChangeCheckpoints = schemaChangeCheckpoints;
+        this.tablesSlot = tablesSlot;
+        this.lastProcessedPositionOnStart = lastProcessedPositionOnStart;
+        this.lastProcessedPosition = lastProcessedPosition;
+        this.changesStoppedBeingMonotonic = changesStoppedBeingMonotonic;
+        this.shouldIncreaseFromLsn = shouldIncreaseFromLsn;
+    }
+
+    public Queue<SqlServerChangeTable> getSchemaChangeCheckpoints() {
+        return schemaChangeCheckpoints;
+    }
+
+    public AtomicReference<SqlServerChangeTable[]> getTablesSlot() {
+        return tablesSlot;
+    }
+
+    public TxLogPosition getLastProcessedPositionOnStart() {
+        return lastProcessedPositionOnStart;
+    }
+
+    public long getLastProcessedEventSerialNoOnStart() {
+        return lastProcessedEventSerialNoOnStart;
+    }
+
+    public TxLogPosition getLastProcessedPosition() {
+        return lastProcessedPosition;
+    }
+
+    public AtomicBoolean getChangesStoppedBeingMonotonic() {
+        return changesStoppedBeingMonotonic;
+    }
+
+    public boolean getShouldIncreaseFromLsn() {
+        return shouldIncreaseFromLsn;
+    }
+
 }
