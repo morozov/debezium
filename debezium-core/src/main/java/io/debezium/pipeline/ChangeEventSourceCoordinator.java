@@ -151,7 +151,7 @@ public class ChangeEventSourceCoordinator<P extends TaskPartition, O extends Off
 
                         boolean streamedEvents = false;
                         for (StreamingResult streamingResult : partitionStreamingResults.values()) {
-                            if (!streamingResult.hasNoEvents()) {
+                            if (streamingResult.eventsStreamed()) {
                                 streamedEvents = true;
                                 break;
                             }
