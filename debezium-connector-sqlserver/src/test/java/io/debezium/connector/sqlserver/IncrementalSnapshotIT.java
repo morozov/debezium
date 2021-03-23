@@ -33,7 +33,7 @@ public class IncrementalSnapshotIT extends AbstractIncrementalSnapshotTest<SqlSe
         connection.execute(
                 "CREATE TABLE a (pk int primary key, aa int)",
                 "CREATE TABLE debezium_signal (id varchar(64), type varchar(32), data varchar(2048))");
-        TestHelper.enableTableCdc(connection, "debezium_signal");
+        TestHelper.enableTableCdc(connection, TestHelper.TEST_REAL_DATABASE1, "debezium_signal");
 
         initializeConnectorTestFramework();
         Testing.Files.delete(TestHelper.DB_HISTORY_PATH);
@@ -49,7 +49,7 @@ public class IncrementalSnapshotIT extends AbstractIncrementalSnapshotTest<SqlSe
     @Override
     protected void populateTable() throws SQLException {
         super.populateTable();
-        TestHelper.enableTableCdc(connection, "a");
+        TestHelper.enableTableCdc(connection, TestHelper.TEST_REAL_DATABASE1, "a");
     }
 
     @Override
