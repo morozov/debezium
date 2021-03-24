@@ -64,23 +64,23 @@ public class IncrementalSnapshotIT extends AbstractIncrementalSnapshotTest<SqlSe
 
     @Override
     protected String topicName() {
-        return "server1.dbo.a";
+        return TestHelper.topicName(TestHelper.TEST_REAL_DATABASE1, "a");
     }
 
     @Override
     protected String tableName() {
-        return "testDB.dbo.a";
+        return TestHelper.tableName(TestHelper.TEST_REAL_DATABASE1, "a");
     }
 
     @Override
     protected String signalTableName() {
-        return "dbo.debezium_signal";
+        return TestHelper.tableName(TestHelper.TEST_REAL_DATABASE1, "debezium_signal");
     }
 
     @Override
     protected Builder config() {
         return TestHelper.defaultConfig()
                 .with(SqlServerConnectorConfig.SNAPSHOT_MODE, SnapshotMode.SCHEMA_ONLY)
-                .with(SqlServerConnectorConfig.SIGNAL_DATA_COLLECTION, "testDB.dbo.debezium_signal");
+                .with(SqlServerConnectorConfig.SIGNAL_DATA_COLLECTION, signalTableName());
     }
 }
