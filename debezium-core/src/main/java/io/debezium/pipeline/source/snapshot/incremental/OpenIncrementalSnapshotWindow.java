@@ -8,10 +8,11 @@ package io.debezium.pipeline.source.snapshot.incremental;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.debezium.connector.common.TaskPartition;
 import io.debezium.pipeline.signal.Signal;
 import io.debezium.pipeline.signal.Signal.Payload;
 
-public class OpenIncrementalSnapshotWindow implements Signal.Action {
+public class OpenIncrementalSnapshotWindow<P extends TaskPartition> implements Signal.Action<P> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(OpenIncrementalSnapshotWindow.class);
 
@@ -21,7 +22,7 @@ public class OpenIncrementalSnapshotWindow implements Signal.Action {
     }
 
     @Override
-    public boolean arrived(Payload signalPayload) {
+    public boolean arrived(P partition, Payload signalPayload) {
         signalPayload.offsetContext.getIncrementalSnapshotContext().openWindow(signalPayload.id);
         return true;
     }

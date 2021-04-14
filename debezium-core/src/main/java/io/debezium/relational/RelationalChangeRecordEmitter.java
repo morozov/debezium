@@ -12,6 +12,7 @@ import org.apache.kafka.connect.header.ConnectHeaders;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.debezium.connector.common.TaskPartition;
 import io.debezium.data.Envelope.Operation;
 import io.debezium.pipeline.AbstractChangeRecordEmitter;
 import io.debezium.pipeline.spi.ChangeRecordEmitter;
@@ -24,7 +25,8 @@ import io.debezium.util.Clock;
  *
  * @author Gunnar Morling
  */
-public abstract class RelationalChangeRecordEmitter extends AbstractChangeRecordEmitter<TableSchema> {
+public abstract class RelationalChangeRecordEmitter<P extends TaskPartition>
+        extends AbstractChangeRecordEmitter<P, TableSchema> {
 
     public static final String PK_UPDATE_OLDKEY_FIELD = "__debezium.oldkey";
     public static final String PK_UPDATE_NEWKEY_FIELD = "__debezium.newkey";
@@ -36,25 +38,25 @@ public abstract class RelationalChangeRecordEmitter extends AbstractChangeRecord
     }
 
     @Override
-    public void emitChangeRecords(DataCollectionSchema schema, Receiver receiver) throws InterruptedException {
+    public void emitChangeRecords(DataCollectionSchema schema, Receiver<P> receiver, P partition) throws InterruptedException {
         TableSchema tableSchema = (TableSchema) schema;
         Operation operation = getOperation();
 
         switch (operation) {
             case CREATE:
-                emitCreateRecord(receiver, tableSchema);
+                emitCreateRecord(receiver, tableSchema, partition);
                 break;
             case READ:
-                emitReadRecord(receiver, tableSchema);
+                emitReadRecord(receiver, tableSchema, partition);
                 break;
             case UPDATE:
-                emitUpdateRecord(receiver, tableSchema);
+                emitUpdateRecord(receiver, tableSchema, partition);
                 break;
             case DELETE:
-                emitDeleteRecord(receiver, tableSchema);
+                emitDeleteRecord(receiver, tableSchema, partition);
                 break;
             case TRUNCATE:
-                emitTruncateRecord(receiver, tableSchema);
+                emitTruncateRecord(receiver, tableSchema, partition);
                 break;
             default:
                 throw new IllegalArgumentException("Unsupported operation: " + operation);
@@ -62,7 +64,7 @@ public abstract class RelationalChangeRecordEmitter extends AbstractChangeRecord
     }
 
     @Override
-    protected void emitCreateRecord(Receiver receiver, TableSchema tableSchema)
+    protected void emitCreateRecord(Receiver<P> receiver, TableSchema tableSchema, P partition)
             throws InterruptedException {
         Object[] newColumnValues = getNewColumnValues();
         Struct newKey = tableSchema.keyFromColumnData(newColumnValues);
@@ -74,22 +76,22 @@ public abstract class RelationalChangeRecordEmitter extends AbstractChangeRecord
             logger.warn("no new values found for table '{}' from create message at '{}'; skipping record", tableSchema, getOffset().getSourceInfo());
             return;
         }
-        receiver.changeRecord(tableSchema, Operation.CREATE, newKey, envelope, getOffset(), null);
+        receiver.changeRecord(partition, tableSchema, Operation.CREATE, newKey, envelope, getOffset(), null);
     }
 
     @Override
-    protected void emitReadRecord(Receiver receiver, TableSchema tableSchema)
+    protected void emitReadRecord(Receiver<P> receiver, TableSchema tableSchema, P partition)
             throws InterruptedException {
         Object[] newColumnValues = getNewColumnValues();
         Struct newKey = tableSchema.keyFromColumnData(newColumnValues);
         Struct newValue = tableSchema.valueFromColumnData(newColumnValues);
         Struct envelope = tableSchema.getEnvelopeSchema().read(newValue, getOffset().getSourceInfo(), getClock().currentTimeAsInstant());
 
-        receiver.changeRecord(tableSchema, Operation.READ, newKey, envelope, getOffset(), null);
+        receiver.changeRecord(partition, tableSchema, Operation.READ, newKey, envelope, getOffset(), null);
     }
 
     @Override
-    protected void emitUpdateRecord(Receiver receiver, TableSchema tableSchema)
+    protected void emitUpdateRecord(Receiver<P> receiver, TableSchema tableSchema, P partition)
             throws InterruptedException {
         Object[] oldColumnValues = getOldColumnValues();
         Object[] newColumnValues = getNewColumnValues();
@@ -108,7 +110,7 @@ public abstract class RelationalChangeRecordEmitter extends AbstractChangeRecord
         // in this case we handle all updates as regular ones
         if (oldKey == null || Objects.equals(oldKey, newKey)) {
             Struct envelope = tableSchema.getEnvelopeSchema().update(oldValue, newValue, getOffset().getSourceInfo(), getClock().currentTimeAsInstant());
-            receiver.changeRecord(tableSchema, Operation.UPDATE, newKey, envelope, getOffset(), null);
+            receiver.changeRecord(partition, tableSchema, Operation.UPDATE, newKey, envelope, getOffset(), null);
         }
         // PK update -> emit as delete and re-insert with new key
         else {
@@ -116,18 +118,18 @@ public abstract class RelationalChangeRecordEmitter extends AbstractChangeRecord
             headers.add(PK_UPDATE_NEWKEY_FIELD, newKey, tableSchema.keySchema());
 
             Struct envelope = tableSchema.getEnvelopeSchema().delete(oldValue, getOffset().getSourceInfo(), getClock().currentTimeAsInstant());
-            receiver.changeRecord(tableSchema, Operation.DELETE, oldKey, envelope, getOffset(), headers);
+            receiver.changeRecord(partition, tableSchema, Operation.DELETE, oldKey, envelope, getOffset(), headers);
 
             headers = new ConnectHeaders();
             headers.add(PK_UPDATE_OLDKEY_FIELD, oldKey, tableSchema.keySchema());
 
             envelope = tableSchema.getEnvelopeSchema().create(newValue, getOffset().getSourceInfo(), getClock().currentTimeAsInstant());
-            receiver.changeRecord(tableSchema, Operation.CREATE, newKey, envelope, getOffset(), headers);
+            receiver.changeRecord(partition, tableSchema, Operation.CREATE, newKey, envelope, getOffset(), headers);
         }
     }
 
     @Override
-    protected void emitDeleteRecord(Receiver receiver, TableSchema tableSchema) throws InterruptedException {
+    protected void emitDeleteRecord(Receiver<P> receiver, TableSchema tableSchema, P partition) throws InterruptedException {
         Object[] oldColumnValues = getOldColumnValues();
         Struct oldKey = tableSchema.keyFromColumnData(oldColumnValues);
         Struct oldValue = tableSchema.valueFromColumnData(oldColumnValues);
@@ -138,10 +140,10 @@ public abstract class RelationalChangeRecordEmitter extends AbstractChangeRecord
         }
 
         Struct envelope = tableSchema.getEnvelopeSchema().delete(oldValue, getOffset().getSourceInfo(), getClock().currentTimeAsInstant());
-        receiver.changeRecord(tableSchema, Operation.DELETE, oldKey, envelope, getOffset(), null);
+        receiver.changeRecord(partition, tableSchema, Operation.DELETE, oldKey, envelope, getOffset(), null);
     }
 
-    protected void emitTruncateRecord(Receiver receiver, TableSchema schema) throws InterruptedException {
+    protected void emitTruncateRecord(Receiver<P> receiver, TableSchema schema, P partition) throws InterruptedException {
         throw new UnsupportedOperationException("TRUNCATE not supported");
     }
 

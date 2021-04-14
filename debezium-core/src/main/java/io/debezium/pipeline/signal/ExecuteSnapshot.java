@@ -26,7 +26,7 @@ import io.debezium.schema.DataCollectionId;
  * @author Jiri Pechanec
  *
  */
-public class ExecuteSnapshot implements Signal.Action {
+public class ExecuteSnapshot<P extends TaskPartition> implements Signal.Action<P> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ExecuteSnapshot.class);
     private static final String FIELD_DATA_COLLECTIONS = "data-collections";
@@ -38,14 +38,14 @@ public class ExecuteSnapshot implements Signal.Action {
         INCREMENTAL
     }
 
-    private final EventDispatcher<? extends TaskPartition, ? extends OffsetContext, ? extends DataCollectionId> dispatcher;
+    private final EventDispatcher<P, ? extends OffsetContext, ? extends DataCollectionId> dispatcher;
 
-    public ExecuteSnapshot(EventDispatcher<? extends TaskPartition, ? extends OffsetContext, ? extends DataCollectionId> dispatcher) {
+    public ExecuteSnapshot(EventDispatcher<P, ? extends OffsetContext, ? extends DataCollectionId> dispatcher) {
         this.dispatcher = dispatcher;
     }
 
     @Override
-    public boolean arrived(Payload signalPayload) throws InterruptedException {
+    public boolean arrived(P partition, Payload signalPayload) throws InterruptedException {
         final Array dataCollectionsArray = signalPayload.data.getArray("data-collections");
         if (dataCollectionsArray == null || dataCollectionsArray.isEmpty()) {
             LOGGER.warn(
@@ -63,7 +63,7 @@ public class ExecuteSnapshot implements Signal.Action {
         LOGGER.info("Requested '{}' snapshot of data collections '{}'", type, dataCollections);
         switch (type) {
             case INCREMENTAL:
-                dispatcher.getIncrementalSnapshotChangeEventSource().addDataCollectionNamesToSnapshot(dataCollections, signalPayload.offsetContext);
+                dispatcher.getIncrementalSnapshotChangeEventSource().addDataCollectionNamesToSnapshot(partition, dataCollections, signalPayload.offsetContext);
                 break;
         }
         return true;

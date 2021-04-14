@@ -21,12 +21,12 @@ import io.debezium.schema.DataCollectionId;
  */
 public interface IncrementalSnapshotChangeEventSource<P extends TaskPartition, O extends OffsetContext, T extends DataCollectionId> {
 
-    void closeWindow(String id, EventDispatcher<P, O, T> dispatcher, OffsetContext offsetContext) throws InterruptedException;
+    void closeWindow(String id, EventDispatcher<P, O, T> dispatcher, P partition, OffsetContext offsetContext) throws InterruptedException;
 
     void processMessage(DataCollectionId dataCollectionId, Object key, OffsetContext offsetContext);
 
-    void init(OffsetContext offsetContext);
+    void init(P partition, OffsetContext offsetContext);
 
-    void addDataCollectionNamesToSnapshot(List<String> dataCollectionIds, OffsetContext offsetContext)
+    void addDataCollectionNamesToSnapshot(P partition, List<String> dataCollectionIds, OffsetContext offsetContext)
             throws InterruptedException;
 }

@@ -8,6 +8,7 @@ package io.debezium.pipeline.spi;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.header.ConnectHeaders;
 
+import io.debezium.connector.common.TaskPartition;
 import io.debezium.data.Envelope.Operation;
 import io.debezium.schema.DataCollectionSchema;
 
@@ -18,12 +19,12 @@ import io.debezium.schema.DataCollectionSchema;
  *
  * @author Gunnar Morling
  */
-public interface ChangeRecordEmitter {
+public interface ChangeRecordEmitter<P extends TaskPartition> {
 
     /**
      * Emits the change record(s) corresponding to data change represented by this emitter.
      */
-    void emitChangeRecords(DataCollectionSchema schema, Receiver receiver) throws InterruptedException;
+    void emitChangeRecords(DataCollectionSchema schema, Receiver<P> receiver, P partition) throws InterruptedException;
 
     /**
      * Returns the offset of the change record(s) emitted.
@@ -34,9 +35,9 @@ public interface ChangeRecordEmitter {
      * Callback passed to {@link ChangeRecordEmitter}s, allowing them to produce one
      * or more change records.
      */
-    public interface Receiver {
+    public interface Receiver<P> {
 
-        void changeRecord(DataCollectionSchema schema, Operation operation, Object key, Struct value,
+        void changeRecord(P partition, DataCollectionSchema schema, Operation operation, Object key, Struct value,
                           OffsetContext offset, ConnectHeaders headers)
                 throws InterruptedException;
     }

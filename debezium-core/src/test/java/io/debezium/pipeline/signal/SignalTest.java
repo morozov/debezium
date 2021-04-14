@@ -7,6 +7,8 @@ package io.debezium.pipeline.signal;
 
 import static org.fest.assertions.Assertions.assertThat;
 
+import java.util.Collections;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.kafka.connect.data.Schema;
@@ -17,6 +19,7 @@ import org.junit.Test;
 import io.debezium.config.CommonConnectorConfig;
 import io.debezium.config.Configuration;
 import io.debezium.connector.SourceInfoStructMaker;
+import io.debezium.connector.common.TaskPartition;
 import io.debezium.data.Envelope;
 import io.debezium.junit.logging.LogInterceptor;
 import io.debezium.pipeline.signal.Signal.Payload;
@@ -30,52 +33,52 @@ public class SignalTest {
 
     @Test
     public void shouldDetectSignal() {
-        final Signal signal = new Signal(config());
+        final Signal<?> signal = new Signal<>(config());
         assertThat(signal.isSignal(new TableId("dbo", null, "mytable"))).isFalse();
         assertThat(signal.isSignal(new TableId("debezium", null, "signal"))).isTrue();
     }
 
     @Test
     public void shouldExecuteLog() throws Exception {
-        final Signal signal = new Signal(config());
+        final Signal<Partition> signal = new Signal<>(config());
         final LogInterceptor log = new LogInterceptor(io.debezium.pipeline.signal.Log.class);
-        assertThat(signal.process("log1", "log", "{\"message\": \"signallog {}\"}")).isTrue();
+        assertThat(signal.process("log1", "log", "{\"message\": \"signallog {}\"}", new Partition())).isTrue();
         assertThat(log.containsMessage("signallog <none>")).isTrue();
     }
 
     @Test
     public void shouldIgnoreInvalidSignalType() throws Exception {
-        final Signal signal = new Signal(config());
-        assertThat(signal.process("log1", "log1", "{\"message\": \"signallog\"}")).isFalse();
+        final Signal<Partition> signal = new Signal<>(config());
+        assertThat(signal.process("log1", "log1", "{\"message\": \"signallog\"}", new Partition())).isFalse();
     }
 
     @Test
     public void shouldIgnoreUnparseableData() throws Exception {
-        final Signal signal = new Signal(config());
-        assertThat(signal.process("log1", "log", "{\"message: \"signallog\"}")).isFalse();
+        final Signal<Partition> signal = new Signal<>(config());
+        assertThat(signal.process("log1", "log", "{\"message: \"signallog\"}", new Partition())).isFalse();
     }
 
     @Test
     public void shouldRegisterAdditionalAction() throws Exception {
-        final Signal signal = new Signal(config());
+        final Signal<Partition> signal = new Signal<>(config());
 
         final AtomicInteger called = new AtomicInteger();
-        final Signal.Action testAction = new Signal.Action() {
+        final Signal.Action<Partition> testAction = new Signal.Action<Partition>() {
 
             @Override
-            public boolean arrived(Payload signalPayload) {
+            public boolean arrived(Partition partition, Payload signalPayload) {
                 called.set(signalPayload.data.getInteger("v"));
                 return true;
             }
         };
         signal.registerSignalAction("custom", testAction);
-        assertThat(signal.process("log1", "custom", "{\"v\": 5}")).isTrue();
+        assertThat(signal.process("log1", "custom", "{\"v\": 5}", new Partition())).isTrue();
         assertThat(called.intValue()).isEqualTo(5);
     }
 
     @Test
     public void shouldExecuteFromEnvelope() throws Exception {
-        final Signal signal = new Signal(config());
+        final Signal<Partition> signal = new Signal<>(config());
         final Schema afterSchema = SchemaBuilder.struct().name("signal")
                 .field("col1", Schema.OPTIONAL_STRING_SCHEMA)
                 .field("col2", Schema.OPTIONAL_STRING_SCHEMA)
@@ -91,22 +94,22 @@ public class SignalTest {
         record.put("col2", "custom");
         record.put("col3", "{\"v\": 5}");
         final AtomicInteger called = new AtomicInteger();
-        final Signal.Action testAction = new Signal.Action() {
+        final Signal.Action<Partition> testAction = new Signal.Action<Partition>() {
 
             @Override
-            public boolean arrived(Payload signalPayload) {
+            public boolean arrived(Partition partition, Payload signalPayload) {
                 called.set(signalPayload.data.getInteger("v"));
                 return true;
             }
         };
         signal.registerSignalAction("custom", testAction);
-        assertThat(signal.process(env.create(record, null, null), null)).isTrue();
+        assertThat(signal.process(env.create(record, null, null), new Partition(), null)).isTrue();
         assertThat(called.intValue()).isEqualTo(5);
     }
 
     @Test
     public void shouldIgnoreInvalidEnvelope() throws Exception {
-        final Signal signal = new Signal(config());
+        final Signal<Partition> signal = new Signal<>(config());
         final Schema afterSchema = SchemaBuilder.struct().name("signal")
                 .field("col1", Schema.OPTIONAL_STRING_SCHEMA)
                 .field("col2", Schema.OPTIONAL_STRING_SCHEMA)
@@ -120,20 +123,20 @@ public class SignalTest {
         record.put("col1", "log1");
         record.put("col2", "custom");
         final AtomicInteger called = new AtomicInteger();
-        final Signal.Action testAction = new Signal.Action() {
+        final Signal.Action<Partition> testAction = new Signal.Action<Partition>() {
 
             @Override
-            public boolean arrived(Payload signalPayload) {
+            public boolean arrived(Partition partition, Payload signalPayload) {
                 called.set(signalPayload.data.getInteger("v"));
                 return true;
             }
         };
         signal.registerSignalAction("custom", testAction);
 
-        assertThat(signal.process(env.create(record, null, null), null)).isFalse();
+        assertThat(signal.process(env.create(record, null, null), new Partition(), null)).isFalse();
         assertThat(called.intValue()).isEqualTo(0);
 
-        assertThat(signal.process(record, null)).isFalse();
+        assertThat(signal.process(record, new Partition(), null)).isFalse();
         assertThat(called.intValue()).isEqualTo(0);
     }
 
@@ -154,5 +157,13 @@ public class SignalTest {
                 return null;
             }
         };
+    }
+
+    private static class Partition implements TaskPartition {
+
+        @Override
+        public Map<String, String> getSourcePartition() {
+            return Collections.emptyMap();
+        }
     }
 }

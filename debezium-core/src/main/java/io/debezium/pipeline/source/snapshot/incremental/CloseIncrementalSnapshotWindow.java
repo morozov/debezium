@@ -15,22 +15,22 @@ import io.debezium.pipeline.signal.Signal.Payload;
 import io.debezium.pipeline.spi.OffsetContext;
 import io.debezium.schema.DataCollectionId;
 
-public class CloseIncrementalSnapshotWindow implements Signal.Action {
+public class CloseIncrementalSnapshotWindow<P extends TaskPartition> implements Signal.Action<P> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(CloseIncrementalSnapshotWindow.class);
 
     public static final String NAME = "snapshot-window-close";
 
-    private final EventDispatcher<? extends TaskPartition, ? extends OffsetContext, ? extends DataCollectionId> dispatcher;
+    private final EventDispatcher<P, ? extends OffsetContext, ? extends DataCollectionId> dispatcher;
 
-    public CloseIncrementalSnapshotWindow(EventDispatcher<? extends TaskPartition, ? extends OffsetContext, ? extends DataCollectionId> dispatcher) {
+    public CloseIncrementalSnapshotWindow(EventDispatcher<P, ? extends OffsetContext, ? extends DataCollectionId> dispatcher) {
         this.dispatcher = dispatcher;
     }
 
     @SuppressWarnings({ "rawtypes", "unchecked" })
     @Override
-    public boolean arrived(Payload signalPayload) throws InterruptedException {
-        dispatcher.getIncrementalSnapshotChangeEventSource().closeWindow(signalPayload.id, (EventDispatcher) dispatcher, signalPayload.offsetContext);
+    public boolean arrived(P partition, Payload signalPayload) throws InterruptedException {
+        dispatcher.getIncrementalSnapshotChangeEventSource().closeWindow(signalPayload.id, (EventDispatcher) dispatcher, partition, signalPayload.offsetContext);
         return true;
     }
 

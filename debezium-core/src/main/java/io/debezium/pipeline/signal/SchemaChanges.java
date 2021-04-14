@@ -23,7 +23,7 @@ import io.debezium.schema.DataCollectionId;
 import io.debezium.schema.SchemaChangeEvent;
 import io.debezium.schema.SchemaChangeEvent.SchemaChangeEventType;
 
-public class SchemaChanges<P extends TaskPartition, O extends OffsetContext> implements Signal.Action {
+public class SchemaChanges<P extends TaskPartition, O extends OffsetContext> implements Signal.Action<P> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SchemaChanges.class);
 
@@ -45,7 +45,7 @@ public class SchemaChanges<P extends TaskPartition, O extends OffsetContext> imp
     }
 
     @Override
-    public boolean arrived(Payload signalPayload) throws InterruptedException {
+    public boolean arrived(P partition, Payload signalPayload) throws InterruptedException {
         final Array changes = signalPayload.data.getArray(FIELD_CHANGES);
         final String database = signalPayload.data.getString(FIELD_DATABASE);
         final String schema = signalPayload.data.getString(FIELD_SCHEMA);

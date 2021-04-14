@@ -57,8 +57,8 @@ public class SignalBasedIncrementalSnapshotChangeEventSource<P extends TaskParti
     private final Clock clock;
     private final String signalWindowStatement;
     private final RelationalDatabaseSchema databaseSchema;
-    private final SnapshotProgressListener progressListener;
-    private final DataChangeEventListener dataListener;
+    private final SnapshotProgressListener<P> progressListener;
+    private final DataChangeEventListener<P> dataListener;
     private long totalRowsScanned = 0;
 
     private Table currentTable;
@@ -66,8 +66,8 @@ public class SignalBasedIncrementalSnapshotChangeEventSource<P extends TaskParti
     private IncrementalSnapshotContext<T> context = null;
 
     public SignalBasedIncrementalSnapshotChangeEventSource(CommonConnectorConfig config, JdbcConnection jdbcConnection,
-                                                           DatabaseSchema<?> databaseSchema, Clock clock, SnapshotProgressListener progressListener,
-                                                           DataChangeEventListener dataChangeEventListener) {
+                                                           DatabaseSchema<?> databaseSchema, Clock clock, SnapshotProgressListener<P> progressListener,
+                                                           DataChangeEventListener<P> dataChangeEventListener) {
         this.connectorConfig = config;
         this.jdbcConnection = jdbcConnection;
         signalWindowStatement = "INSERT INTO " + connectorConfig.getSignalingDataCollectionId()
@@ -80,7 +80,7 @@ public class SignalBasedIncrementalSnapshotChangeEventSource<P extends TaskParti
 
     @Override
     @SuppressWarnings("unchecked")
-    public void closeWindow(String id, EventDispatcher<P, O, T> dispatcher, OffsetContext offsetContext) throws InterruptedException {
+    public void closeWindow(String id, EventDispatcher<P, O, T> dispatcher, P partition, OffsetContext offsetContext) throws InterruptedException {
         context = (IncrementalSnapshotContext<T>) offsetContext.getIncrementalSnapshotContext();
         if (!context.closeWindow(id)) {
             return;
@@ -88,17 +88,17 @@ public class SignalBasedIncrementalSnapshotChangeEventSource<P extends TaskParti
         LOGGER.debug("Sending {} events from window buffer", window.size());
         offsetContext.incrementalSnapshotEvents();
         for (Object[] row : window.values()) {
-            sendEvent(dispatcher, offsetContext, row);
+            sendEvent(dispatcher, partition, offsetContext, row);
         }
         offsetContext.postSnapshotCompletion();
         window.clear();
-        readChunk();
+        readChunk(partition);
     }
 
-    protected void sendEvent(EventDispatcher<P, O, T> dispatcher, OffsetContext offsetContext, Object[] row) throws InterruptedException {
+    protected void sendEvent(EventDispatcher<P, O, T> dispatcher, P partition, OffsetContext offsetContext, Object[] row) throws InterruptedException {
         context.sendEvent(keyFromRow(row));
-        offsetContext.event((T) context.currentDataCollectionId(), clock.currentTimeAsInstant());
-        dispatcher.dispatchSnapshotEvent((T) context.currentDataCollectionId(),
+        offsetContext.event(context.currentDataCollectionId(), clock.currentTimeAsInstant());
+        dispatcher.dispatchSnapshotEvent(partition, context.currentDataCollectionId(),
                 getChangeRecordEmitter(context.currentDataCollectionId(), offsetContext, row),
                 dispatcher.getIncrementalSnapshotChangeEventReceiver(dataListener));
     }
@@ -181,7 +181,7 @@ public class SignalBasedIncrementalSnapshotChangeEventSource<P extends TaskParti
 
     @Override
     @SuppressWarnings("unchecked")
-    public void init(OffsetContext offsetContext) {
+    public void init(P partition, OffsetContext offsetContext) {
         if (offsetContext == null) {
             LOGGER.info("Empty incremental snapshot change event source started, no action needed");
             return;
@@ -193,8 +193,8 @@ public class SignalBasedIncrementalSnapshotChangeEventSource<P extends TaskParti
         }
         LOGGER.info("Incremental snapshot in progress, need to read new chunk on start");
         try {
-            progressListener.snapshotStarted();
-            readChunk();
+            progressListener.snapshotStarted(partition);
+            readChunk(partition);
         }
         catch (InterruptedException e) {
             throw new DebeziumException("Reading of an initial chunk after connector restart has been interrupted");
@@ -202,7 +202,7 @@ public class SignalBasedIncrementalSnapshotChangeEventSource<P extends TaskParti
         LOGGER.info("Incremental snapshot in progress, loading of initial chunk completed");
     }
 
-    private void readChunk() throws InterruptedException {
+    private void readChunk(P partition) throws InterruptedException {
         if (!context.snapshotRunning()) {
             return;
         }
@@ -238,14 +238,14 @@ public class SignalBasedIncrementalSnapshotChangeEventSource<P extends TaskParti
                                 context.maximumKey().orElse(new Object[0]));
                     }
                 }
-                createDataEventsForTable();
+                createDataEventsForTable(partition);
                 if (window.isEmpty()) {
                     LOGGER.info("No data returned by the query, incremental snapshotting of table '{}' finished",
                             currentTableId);
-                    tableScanCompleted();
+                    tableScanCompleted(partition);
                     context.nextDataCollection();
                     if (!context.snapshotRunning()) {
-                        progressListener.snapshotCompleted();
+                        progressListener.snapshotCompleted(partition);
                     }
                 }
                 else {
@@ -262,7 +262,7 @@ public class SignalBasedIncrementalSnapshotChangeEventSource<P extends TaskParti
 
     @Override
     @SuppressWarnings("unchecked")
-    public void addDataCollectionNamesToSnapshot(List<String> dataCollectionIds, OffsetContext offsetContext) throws InterruptedException {
+    public void addDataCollectionNamesToSnapshot(P partition, List<String> dataCollectionIds, OffsetContext offsetContext) throws InterruptedException {
         context = (IncrementalSnapshotContext<T>) offsetContext.getIncrementalSnapshotContext();
         boolean shouldReadChunk = false;
         if (!context.snapshotRunning()) {
@@ -270,9 +270,9 @@ public class SignalBasedIncrementalSnapshotChangeEventSource<P extends TaskParti
         }
         final List<T> newDataCollectionIds = context.addDataCollectionNamesToSnapshot(dataCollectionIds);
         if (shouldReadChunk) {
-            progressListener.snapshotStarted();
-            progressListener.monitoredDataCollectionsDetermined(newDataCollectionIds);
-            readChunk();
+            progressListener.snapshotStarted(partition);
+            progressListener.monitoredDataCollectionsDetermined(partition, newDataCollectionIds);
+            readChunk(partition);
         }
     }
 
@@ -289,7 +289,7 @@ public class SignalBasedIncrementalSnapshotChangeEventSource<P extends TaskParti
     /**
      * Dispatches the data change events for the records of a single table.
      */
-    private void createDataEventsForTable() throws InterruptedException {
+    private void createDataEventsForTable(P partition) throws InterruptedException {
         long exportStart = clock.currentTimeInMillis();
         LOGGER.debug("Exporting data chunk from table '{}' (total {} tables)", currentTable.id(), context.tablesToBeSnapshottedCount());
 
@@ -327,27 +327,27 @@ public class SignalBasedIncrementalSnapshotChangeEventSource<P extends TaskParti
             final Object[] firstKey = keyFromRow(firstRow);
             final Object[] lastKey = keyFromRow(lastRow);
             context.nextChunkPosition(lastKey);
-            progressListener.currentChunk(context.currentChunkId(), firstKey, lastKey);
+            progressListener.currentChunk(partition, context.currentChunkId(), firstKey, lastKey);
             if (lastRow != null) {
                 LOGGER.debug("\t Next window will resume from '{}'", context.chunkEndPosititon());
             }
 
             LOGGER.debug("\t Finished exporting {} records for window of table table '{}'; total duration '{}'", rows,
                     currentTable.id(), Strings.duration(clock.currentTimeInMillis() - exportStart));
-            incrementTableRowsScanned(rows);
+            incrementTableRowsScanned(partition, rows);
         }
         catch (SQLException e) {
             throw new DebeziumException("Snapshotting of table " + currentTable.id() + " failed", e);
         }
     }
 
-    private void incrementTableRowsScanned(long rows) {
+    private void incrementTableRowsScanned(P partition, long rows) {
         totalRowsScanned += rows;
-        progressListener.rowsScanned(currentTable.id(), totalRowsScanned);
+        progressListener.rowsScanned(partition, currentTable.id(), totalRowsScanned);
     }
 
-    private void tableScanCompleted() {
-        progressListener.dataCollectionSnapshotCompleted(currentTable.id(), totalRowsScanned);
+    private void tableScanCompleted(P partition) {
+        progressListener.dataCollectionSnapshotCompleted(partition, currentTable.id(), totalRowsScanned);
         totalRowsScanned = 0;
     }
 
