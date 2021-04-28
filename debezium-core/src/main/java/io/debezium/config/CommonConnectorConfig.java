@@ -42,6 +42,7 @@ import io.debezium.util.Strings;
  * @author Gunnar Morling
  */
 public abstract class CommonConnectorConfig {
+    public static final String TASK_ID = "task.id";
 
     /**
      * The set of predefined versions e.g. for source struct maker version
@@ -474,6 +475,7 @@ public abstract class CommonConnectorConfig {
     private final BinaryHandlingMode binaryHandlingMode;
     private final String signalingDataCollection;
     private final EnumSet<Operation> skippedOperations;
+    private final String taskId;
 
     protected CommonConnectorConfig(Configuration config, String logicalName, int defaultSnapshotFetchSize) {
         this.config = config;
@@ -498,6 +500,7 @@ public abstract class CommonConnectorConfig {
         this.binaryHandlingMode = BinaryHandlingMode.parse(config.getString(BINARY_HANDLING_MODE));
         this.signalingDataCollection = config.getString(SIGNAL_DATA_COLLECTION);
         this.skippedOperations = determineSkippedOperations(config);
+        this.taskId = config.getString(TASK_ID);
     }
 
     private static EnumSet<Envelope.Operation> determineSkippedOperations(Configuration config) {
@@ -733,5 +736,9 @@ public abstract class CommonConnectorConfig {
 
     public String getSignalingDataCollectionId() {
         return signalingDataCollection;
+    }
+
+    public String getTaskId() {
+        return taskId;
     }
 }

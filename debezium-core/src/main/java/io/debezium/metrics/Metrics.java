@@ -36,16 +36,15 @@ public abstract class Metrics {
     private volatile boolean registered = false;
 
     protected Metrics(CdcSourceTaskContext taskContext, String contextName) {
-        this.name = metricName(taskContext.getConnectorType(), taskContext.getConnectorName(), contextName);
+        this.name = metricName(taskContext.getConnectorType(), taskContext.getConnectorName(), contextName, taskContext.getTaskId());
     }
 
     protected Metrics(CdcSourceTaskContext taskContext, String contextName, TaskPartition partition) {
-        this.name = metricName(taskContext.getConnectorType(), taskContext.getConnectorName(), contextName,
-                partition.getSourcePartition());
+        this.name = metricName(taskContext.getConnectorType(), taskContext.getConnectorName(), contextName, taskContext.getTaskId(), partition.getSourcePartition());
     }
 
     protected Metrics(CommonConnectorConfig connectorConfig, String contextName) {
-        this.name = metricName(connectorConfig.getContextName(), connectorConfig.getLogicalName(), contextName);
+        this.name = metricName(connectorConfig.getContextName(), connectorConfig.getLogicalName(), contextName, connectorConfig.getTaskId());
     }
 
     /**
@@ -87,8 +86,8 @@ public abstract class Metrics {
         }
     }
 
-    protected ObjectName metricName(String connectorType, String connectorName, String contextName) {
-        return metricName(connectorType, connectorName, contextName, new HashMap<>());
+    protected ObjectName metricName(String connectorType, String connectorName, String contextName, String taskId) {
+        return metricName(connectorType, connectorName, contextName, taskId, new HashMap<>());
     }
 
     /**
@@ -96,11 +95,12 @@ public abstract class Metrics {
      * @param contextName the name of the context
      * @return the JMX metric name
      */
-    protected ObjectName metricName(String connectorType, String connectorName, String contextName,
+    protected ObjectName metricName(String connectorType, String connectorName, String contextName, String taskId,
                                     Map<String, String> labels) {
         Map<String, String> allLabels = new LinkedHashMap<>();
         allLabels.put("context", contextName);
         allLabels.put("server", connectorName);
+        allLabels.put("task", taskId);
         allLabels.putAll(labels);
 
         final String metricName = "debezium." + connectorType.toLowerCase() + ":type=connector-metrics,"

@@ -68,7 +68,7 @@ public class TestHelper {
     public static final String TEST_FIRST_DATABASE = TEST_DATABASES.get(TEST_DATABASE1);
     public static final String TEST_SERVER_NAME = "server1";
     private static final String TEST_PROPERTY_PREFIX = "debezium.test.";
-
+    private static final String TEST_TASK_ID = "0";
     private static final String STATEMENTS_PLACEHOLDER = "#";
     private static final String DATABASE_PLACEHOLDER = "[#db]";
 
@@ -453,7 +453,7 @@ public class TestHelper {
         try {
             Awaitility.await("Snapshot not completed").atMost(Duration.ofSeconds(60)).until(() -> {
                 try {
-                    return (boolean) mbeanServer.getAttribute(getObjectName("snapshot", TEST_SERVER_NAME, databaseName), "SnapshotCompleted");
+                    return (boolean) mbeanServer.getAttribute(getObjectName("snapshot", TEST_SERVER_NAME, TEST_TASK_ID, databaseName), "SnapshotCompleted");
                 }
                 catch (InstanceNotFoundException e) {
                     // Metrics has not started yet
@@ -475,7 +475,7 @@ public class TestHelper {
         try {
             Awaitility.await("Streaming never started").atMost(Duration.ofSeconds(60)).until(() -> {
                 try {
-                    return (boolean) mbeanServer.getAttribute(getObjectName("streaming", TEST_SERVER_NAME), "Connected");
+                    return (boolean) mbeanServer.getAttribute(getObjectName("streaming", TEST_SERVER_NAME, TEST_TASK_ID), "Connected");
                 }
                 catch (InstanceNotFoundException e) {
                     // Metrics has not started yet
@@ -501,12 +501,13 @@ public class TestHelper {
         }
     }
 
-    private static ObjectName getObjectName(String context, String serverName) throws MalformedObjectNameException {
-        return new ObjectName("debezium.sql_server:type=connector-metrics,context=" + context + ",server=" + serverName);
+    private static ObjectName getObjectName(String context, String serverName, String taskId) throws MalformedObjectNameException {
+        return new ObjectName("debezium.sql_server:type=connector-metrics,context=" + context + ",server=" + serverName + ",task=" + taskId);
     }
 
-    private static ObjectName getObjectName(String context, String serverName, String databaseName) throws MalformedObjectNameException {
-        return new ObjectName("debezium.sql_server:type=connector-metrics,context=" + context + ",server=" + serverName + ",database=" + databaseName);
+    private static ObjectName getObjectName(String context, String serverName, String taskId, String databaseName) throws MalformedObjectNameException {
+        return new ObjectName(
+                "debezium.sql_server:type=connector-metrics,context=" + context + ",server=" + serverName + ",task=" + taskId + ",database=" + databaseName);
     }
 
     public static int waitTimeForRecords() {
