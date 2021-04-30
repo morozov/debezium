@@ -207,6 +207,10 @@ public class SqlServerConnectorIT extends AbstractConnectorTest {
                         "INSERT INTO tableb VALUES(" + id + ", 'b')");
             }
 
+            int lastId = ID_START + RECORDS_PER_TABLE - 1;
+            TestHelper.waitForCdcRecord(connection, databaseName, "tablea", rs -> rs.getInt("id") == lastId);
+            TestHelper.waitForCdcRecord(connection, databaseName, "tableb", rs -> rs.getInt("id") == lastId);
+
             final SourceRecords records = consumeRecordsByTopic(RECORDS_PER_TABLE * TABLES, 24);
             final List<SourceRecord> tableA = records.recordsForTopic(TestHelper.topicName(databaseName, "tablea"));
             final List<SourceRecord> tableB = records.recordsForTopic(TestHelper.topicName(databaseName, "tableb"));
@@ -1680,6 +1684,7 @@ public class SqlServerConnectorIT extends AbstractConnectorTest {
             connection.execute("USE " + databaseName);
             connection.execute("INSERT INTO excluded_column_table_a VALUES(10, 'some_name', 120)");
             connection.execute("INSERT INTO excluded_column_table_a VALUES(11, 'some_name', 121)");
+            TestHelper.waitForCdcRecord(connection, databaseName, "excluded_column_table_a", rs -> rs.getInt("id") == 11);
         });
 
         final SourceRecords records = consumeRecordsByTopic(2 * TestHelper.TEST_DATABASES.size());
@@ -2451,10 +2456,11 @@ public class SqlServerConnectorIT extends AbstractConnectorTest {
         start(SqlServerConnector.class, config);
         assertConnectorIsRunning();
 
+        TestHelper.waitForAllDatabaseSnapshotsToBeCompleted();
         TestHelper.forEachDatabase(databaseName -> {
-            TestHelper.waitForSnapshotToBeCompleted(databaseName);
             connection.execute("USE " + databaseName);
             connection.execute("INSERT INTO dt_table (id,c1,c2,c3a,c3b,f1,f2) values (1, 123, 456, 789.01, 'test', 1.228, 234.56)");
+            TestHelper.waitForCdcRecord(connection, databaseName, "dt_table", rs -> rs.getInt("id") == 1);
         });
 
         SourceRecords records = consumeRecordsByTopic(TestHelper.TEST_DATABASES.size());
@@ -2564,6 +2570,7 @@ public class SqlServerConnectorIT extends AbstractConnectorTest {
         assertConnectorIsRunning();
 
         // Wait for snapshot completion
+        TestHelper.waitForAllDatabaseSnapshotsToBeCompleted();
         consumeRecordsByTopic(TestHelper.TEST_DATABASES.size());
 
         TestHelper.forEachDatabase(databaseName -> {
@@ -2576,6 +2583,9 @@ public class SqlServerConnectorIT extends AbstractConnectorTest {
                         "INSERT INTO tableb VALUES(" + id + ", 'b')");
             }
 
+            int lastId = ID_START + RECORDS_PER_TABLE - 1;
+            TestHelper.waitForCdcRecord(connection, databaseName, "tablea", rs -> rs.getInt("id") == lastId);
+            TestHelper.waitForCdcRecord(connection, databaseName, "tableb", rs -> rs.getInt("id") == lastId);
             final SourceRecords records = consumeRecordsByTopic(RECORDS_PER_TABLE * TABLES);
             final List<SourceRecord> tableA = records.recordsForTopic(TestHelper.topicName(databaseName, "tablea"));
             final List<SourceRecord> tableB = records.recordsForTopic(TestHelper.topicName(databaseName, "tableb"));
