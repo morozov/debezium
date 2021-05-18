@@ -16,15 +16,16 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -75,10 +76,13 @@ public class SqlServerConnection extends JdbcConnection {
     private final String get_all_changes_for_table;
     protected static final String LSN_TIMESTAMP_SELECT_STATEMENT = "[#db].sys.fn_cdc_map_lsn_to_time([__$start_lsn])";
     protected static final String AT_TIME_ZONE_UTC = "AT TIME ZONE 'UTC'";
-    private static final String GET_LIST_OF_CDC_ENABLED_TABLES = "EXEC [#db].sys.sp_cdc_help_change_data_capture";
+    private static final String GET_LIST_OF_CDC_ENABLED_TABLES = "SELECT s.name AS source_schema, o.name AS source_table, ct.capture_instance, ct.object_id, ct.start_lsn, ct.end_lsn "
+            + "FROM [#db].cdc.change_tables ct "
+            + "LEFT JOIN [#db].sys.objects o ON ct.source_object_id = o.object_id "
+            + "LEFT JOIN [#db].sys.schemas s ON s.schema_id = o.schema_id";
+    private static final String GET_LIST_OF_CDC_ENABLED_COLUMNS = "SELECT object_id, column_id, column_name FROM [#db].cdc.captured_columns ORDER BY object_id ASC, column_id ASC";
     private static final String GET_LIST_OF_NEW_CDC_ENABLED_TABLES = "SELECT * FROM [#db].cdc.change_tables WHERE start_lsn BETWEEN ? AND ?";
     private static final String GET_LIST_OF_KEY_COLUMNS = "SELECT * FROM [#db].cdc.index_columns WHERE object_id=?";
-    private static final Pattern BRACKET_PATTERN = Pattern.compile("[\\[\\]]");
 
     private static final int CHANGE_TABLE_DATA_COLUMN_OFFSET = 5;
 
@@ -366,18 +370,33 @@ public class SqlServerConnection extends JdbcConnection {
     }
 
     public Set<SqlServerChangeTable> listOfChangeTables(String databaseName) throws SQLException {
+        Map<Integer, List<String>> columns = queryAndMap(
+                GET_LIST_OF_CDC_ENABLED_COLUMNS.replace(DATABASE_NAME_PLACEHOLDER, databaseName),
+                rs -> {
+                    Map<Integer, List<String>> result = new HashMap<>();
+                    while (rs.next()) {
+                        int changeTableObjectId = rs.getInt(1);
+                        if (!result.containsKey(changeTableObjectId)) {
+                            result.put(changeTableObjectId, new LinkedList<>());
+                        }
+
+                        result.get(changeTableObjectId).add(rs.getString(3));
+                    }
+                    return result;
+                });
+
         return queryAndMap(GET_LIST_OF_CDC_ENABLED_TABLES.replace(DATABASE_NAME_PLACEHOLDER, databaseName), rs -> {
             final Set<SqlServerChangeTable> changeTables = new HashSet<>();
             while (rs.next()) {
+                int changeTableObjectId = rs.getInt(4);
                 changeTables.add(
                         new SqlServerChangeTable(
                                 new TableId(databaseName, rs.getString(1), rs.getString(2)),
                                 rs.getString(3),
-                                rs.getInt(4),
+                                changeTableObjectId,
+                                Lsn.valueOf(rs.getBytes(5)),
                                 Lsn.valueOf(rs.getBytes(6)),
-                                Lsn.valueOf(rs.getBytes(7)),
-                                Arrays.asList(BRACKET_PATTERN.matcher(Optional.ofNullable(rs.getString(15)).orElse(""))
-                                        .replaceAll("").split(", "))));
+                                columns.get(changeTableObjectId)));
             }
             return changeTables;
         });
