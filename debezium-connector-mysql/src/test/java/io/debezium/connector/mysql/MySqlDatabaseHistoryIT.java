@@ -164,6 +164,41 @@ public class MySqlDatabaseHistoryIT extends AbstractConnectorTest {
         stopConnector();
     }
 
+    @Test
+    @FixFor("DBZ-3399")
+    public void shouldDoStuff() throws SQLException, InterruptedException {
+        config = DATABASE.defaultConfig()
+                .with(MySqlConnectorConfig.SNAPSHOT_MODE, MySqlConnectorConfig.SnapshotMode.SCHEMA_ONLY)
+                .with(MySqlConnectorConfig.DATABASE_INCLUDE_LIST, "excluded_database")
+                .build();
+
+        // Start the connector ...
+        start(MySqlConnector.class, config);
+
+        Testing.Print.enable();
+        // SET + USE + Drop DB + create DB + CREATE/DROP for each table
+        SourceRecords records = consumeRecordsByTopic(1 + 1 + 1 + 1 + TABLE_COUNT * 2);
+        MySqlTestConnection connection = MySqlTestConnection.forTestDatabase(DATABASE.getDatabaseName());
+
+        connection.execute("DROP DATABASE IF EXISTS excluded_database");
+        connection.execute("CREATE DATABASE excluded_database");
+        connection.execute("CREATE TABLE excluded_database.table1 (id INTEGER NOT NULL, value VARCHAR(32))");
+        records = consumeRecordsByTopic(3);
+        final List<SourceRecord> schemaChanges = records.recordsForTopic(DATABASE.getServerName());
+        stopConnector();
+
+        connection.execute("ALTER TABLE excluded_database.table1 DROP COLUMN value;");
+
+        config = DATABASE.defaultConfig()
+                .with(MySqlConnectorConfig.SNAPSHOT_MODE, MySqlConnectorConfig.SnapshotMode.SCHEMA_ONLY)
+                .build();
+
+        start(MySqlConnector.class, config);
+        assertConnectorIsRunning();
+        consumeRecordsByTopic(1);
+        stopConnector();
+    }
+
     private void assertDdls(SourceRecords records) {
         final List<SourceRecord> schemaChanges = records.recordsForTopic(DATABASE.getServerName());
         int index = 0;
