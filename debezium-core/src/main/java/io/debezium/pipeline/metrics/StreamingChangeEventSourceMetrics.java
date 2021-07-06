@@ -14,7 +14,7 @@ import org.slf4j.LoggerFactory;
 import io.debezium.annotation.ThreadSafe;
 import io.debezium.connector.base.ChangeEventQueueMetrics;
 import io.debezium.connector.common.CdcSourceTaskContext;
-import io.debezium.connector.common.TaskPartition;
+import io.debezium.connector.common.Partition;
 import io.debezium.pipeline.ConnectorEvent;
 import io.debezium.pipeline.source.spi.DataChangeEventListener;
 import io.debezium.pipeline.source.spi.EventMetadataProvider;
@@ -23,7 +23,7 @@ import io.debezium.pipeline.source.spi.EventMetadataProvider;
  * @author Randall Hauch, Jiri Pechanec
  */
 @ThreadSafe
-public class StreamingChangeEventSourceMetrics<P extends TaskPartition>
+public class StreamingChangeEventSourceMetrics<P extends Partition>
         extends PipelineMetrics<P, StreamingChangeEventSourcePartitionMetrics>
         implements StreamingChangeEventSourceTaskMetricsMXBean, DataChangeEventListener<P> {
 
@@ -50,7 +50,7 @@ public class StreamingChangeEventSourceMetrics<P extends TaskPartition>
     }
 
     @Override
-    public void onConnectorEvent(TaskPartition partition, ConnectorEvent event) {
+    public void onConnectorEvent(Partition partition, ConnectorEvent event) {
     }
 
     @Override

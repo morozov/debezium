@@ -17,7 +17,7 @@ import org.slf4j.LoggerFactory;
 
 import io.debezium.annotation.NotThreadSafe;
 import io.debezium.config.CommonConnectorConfig;
-import io.debezium.connector.common.TaskPartition;
+import io.debezium.connector.common.Partition;
 import io.debezium.data.Envelope;
 import io.debezium.document.Document;
 import io.debezium.document.DocumentReader;
@@ -43,10 +43,10 @@ import io.debezium.schema.DataCollectionId;
  *
  */
 @NotThreadSafe
-public class Signal<P extends TaskPartition> {
+public class Signal<P extends Partition> {
 
     @FunctionalInterface
-    public static interface Action<P extends TaskPartition> {
+    public static interface Action<P extends Partition> {
 
         /**
          * @param signalPayload the content of the signal
@@ -89,11 +89,11 @@ public class Signal<P extends TaskPartition> {
 
     private final CommonConnectorConfig connectorConfig;
     private final String signalDataCollectionId;
-    private final EventDispatcher<? extends TaskPartition, ? extends OffsetContext, ? extends DataCollectionId> dispatcher;
+    private final EventDispatcher<? extends Partition, ? extends OffsetContext, ? extends DataCollectionId> dispatcher;
 
     private final Map<String, Action<P>> signalActions = new HashMap<>();
 
-    public Signal(CommonConnectorConfig connectorConfig, EventDispatcher<? extends TaskPartition, ? extends OffsetContext, ? extends DataCollectionId> eventDispatcher) {
+    public Signal(CommonConnectorConfig connectorConfig, EventDispatcher<? extends Partition, ? extends OffsetContext, ? extends DataCollectionId> eventDispatcher) {
         this.connectorConfig = connectorConfig;
         this.signalDataCollectionId = connectorConfig.getSignalingDataCollectionId();
         this.dispatcher = eventDispatcher;

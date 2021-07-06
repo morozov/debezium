@@ -9,7 +9,7 @@ import java.util.Collection;
 
 import io.debezium.connector.base.ChangeEventQueueMetrics;
 import io.debezium.connector.common.CdcSourceTaskContext;
-import io.debezium.connector.common.TaskPartition;
+import io.debezium.connector.common.Partition;
 import io.debezium.pipeline.metrics.SnapshotChangeEventSourceMetrics;
 import io.debezium.pipeline.metrics.StreamingChangeEventSourceMetrics;
 import io.debezium.pipeline.source.spi.EventMetadataProvider;
@@ -19,7 +19,7 @@ import io.debezium.pipeline.source.spi.EventMetadataProvider;
  *
  * @author Chris Cranford
  */
-public interface ChangeEventSourceMetricsFactory<P extends TaskPartition> {
+public interface ChangeEventSourceMetricsFactory<P extends Partition> {
 
     /**
      * Returns the snapshot change event source metrics.

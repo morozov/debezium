@@ -7,7 +7,7 @@ package io.debezium.pipeline.source.spi;
 
 import org.apache.kafka.connect.data.Struct;
 
-import io.debezium.connector.common.TaskPartition;
+import io.debezium.connector.common.Partition;
 import io.debezium.pipeline.ConnectorEvent;
 import io.debezium.pipeline.EventDispatcher;
 import io.debezium.pipeline.spi.OffsetContext;
@@ -19,7 +19,7 @@ import io.debezium.schema.DataCollectionId;
  * @author Jiri Pechanec
  *
  */
-public interface DataChangeEventListener<P extends TaskPartition> {
+public interface DataChangeEventListener<P extends Partition> {
 
     /**
      * Invoked if an event is processed for a captured table.
@@ -41,7 +41,7 @@ public interface DataChangeEventListener<P extends TaskPartition> {
      */
     void onConnectorEvent(P partition, ConnectorEvent event);
 
-    static <P extends TaskPartition> DataChangeEventListener<P> NO_OP() {
+    static <P extends Partition> DataChangeEventListener<P> NO_OP() {
         return new DataChangeEventListener<P>() {
             @Override
             public void onFilteredEvent(P partition, String event) {

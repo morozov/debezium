@@ -25,7 +25,7 @@ import io.debezium.util.SchemaNameAdjuster;
  *
  * @author Jiri Pechanec
  */
-public class SqlServerDatabaseSchema extends HistorizedRelationalDatabaseSchema<SqlServerTaskPartition, SqlServerOffsetContext> {
+public class SqlServerDatabaseSchema extends HistorizedRelationalDatabaseSchema<SqlServerPartition, SqlServerOffsetContext> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SqlServerDatabaseSchema.class);
 

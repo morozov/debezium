@@ -56,7 +56,7 @@ import io.debezium.util.ElapsedTimeStrategy;
  *
  * @author Jiri Pechanec
  */
-public class SqlServerStreamingChangeEventSource implements StreamingChangeEventSource<SqlServerTaskPartition, SqlServerOffsetContext> {
+public class SqlServerStreamingChangeEventSource implements StreamingChangeEventSource<SqlServerPartition, SqlServerOffsetContext> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SqlServerStreamingChangeEventSource.class);
 
@@ -76,7 +76,7 @@ public class SqlServerStreamingChangeEventSource implements StreamingChangeEvent
      */
     private final SqlServerConnection metadataConnection;
 
-    private final EventDispatcher<SqlServerTaskPartition, SqlServerOffsetContext, TableId> dispatcher;
+    private final EventDispatcher<SqlServerPartition, SqlServerOffsetContext, TableId> dispatcher;
     private final ErrorHandler errorHandler;
     private final Clock clock;
     private final SqlServerDatabaseSchema schema;
@@ -87,7 +87,7 @@ public class SqlServerStreamingChangeEventSource implements StreamingChangeEvent
 
     public SqlServerStreamingChangeEventSource(SqlServerConnectorConfig connectorConfig, SqlServerConnection dataConnection,
                                                SqlServerConnection metadataConnection,
-                                               EventDispatcher<SqlServerTaskPartition, SqlServerOffsetContext, TableId> dispatcher, ErrorHandler errorHandler,
+                                               EventDispatcher<SqlServerPartition, SqlServerOffsetContext, TableId> dispatcher, ErrorHandler errorHandler,
                                                Clock clock,
                                                SqlServerDatabaseSchema schema) {
         this.connectorConfig = connectorConfig;
@@ -107,7 +107,7 @@ public class SqlServerStreamingChangeEventSource implements StreamingChangeEvent
     }
 
     @Override
-    public StreamingResult<SqlServerOffsetContext> execute(ChangeEventSourceContext context, SqlServerTaskPartition partition, SqlServerOffsetContext offsetContext)
+    public StreamingResult<SqlServerOffsetContext> execute(ChangeEventSourceContext context, SqlServerPartition partition, SqlServerOffsetContext offsetContext)
             throws InterruptedException {
         if (connectorConfig.getSnapshotMode().equals(SnapshotMode.INITIAL_ONLY)) {
             LOGGER.info("Streaming is not enabled in current configuration");
@@ -333,7 +333,7 @@ public class SqlServerStreamingChangeEventSource implements StreamingChangeEvent
         }
     }
 
-    private void migrateTable(final Queue<SqlServerChangeTable> schemaChangeCheckpoints, SqlServerOffsetContext offsetContext, SqlServerTaskPartition partition)
+    private void migrateTable(final Queue<SqlServerChangeTable> schemaChangeCheckpoints, SqlServerOffsetContext offsetContext, SqlServerPartition partition)
             throws InterruptedException, SQLException {
         final SqlServerChangeTable newTable = schemaChangeCheckpoints.poll();
         LOGGER.info("Migrating schema to {}", newTable);
@@ -344,7 +344,7 @@ public class SqlServerStreamingChangeEventSource implements StreamingChangeEvent
     }
 
     private SqlServerChangeTable[] processErrorFromChangeTableQuery(SQLException exception, SqlServerChangeTable[] currentChangeTables,
-                                                                    SqlServerTaskPartition partition)
+                                                                    SqlServerPartition partition)
             throws Exception {
         final String pattern = "Invalid object name '[#db].cdc.fn_cdc_get_all_changes_(.*)'\\."
                 .replace("[#db]", partition.getDatabaseName());
@@ -359,7 +359,7 @@ public class SqlServerStreamingChangeEventSource implements StreamingChangeEvent
         throw exception;
     }
 
-    private SqlServerChangeTable[] getCdcTablesToQuery(SqlServerOffsetContext offsetContext, SqlServerTaskPartition partition) throws SQLException, InterruptedException {
+    private SqlServerChangeTable[] getCdcTablesToQuery(SqlServerOffsetContext offsetContext, SqlServerPartition partition) throws SQLException, InterruptedException {
         final Set<SqlServerChangeTable> cdcEnabledTables = dataConnection.listOfChangeTables(partition.getDatabaseName());
         if (cdcEnabledTables.isEmpty()) {
             LOGGER.warn("No table has enabled CDC or security constraints prevents getting the list of change tables");

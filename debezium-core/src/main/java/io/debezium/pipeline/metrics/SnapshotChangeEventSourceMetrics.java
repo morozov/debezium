@@ -10,7 +10,7 @@ import java.util.Collection;
 import io.debezium.annotation.ThreadSafe;
 import io.debezium.connector.base.ChangeEventQueueMetrics;
 import io.debezium.connector.common.CdcSourceTaskContext;
-import io.debezium.connector.common.TaskPartition;
+import io.debezium.connector.common.Partition;
 import io.debezium.pipeline.source.spi.EventMetadataProvider;
 import io.debezium.pipeline.source.spi.SnapshotProgressListener;
 import io.debezium.relational.TableId;
@@ -22,7 +22,7 @@ import io.debezium.schema.DataCollectionId;
  * @author Randall Hauch, Jiri Pechanec
  */
 @ThreadSafe
-public class SnapshotChangeEventSourceMetrics<P extends TaskPartition>
+public class SnapshotChangeEventSourceMetrics<P extends Partition>
         extends PipelineMetrics<P, SnapshotChangeEventSourcePartitionMetrics>
         implements ChangeEventSourceTaskMetricsMXBean, SnapshotProgressListener<P> {
 

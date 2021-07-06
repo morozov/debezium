@@ -5,7 +5,7 @@
  */
 package io.debezium.pipeline.source.spi;
 
-import io.debezium.connector.common.TaskPartition;
+import io.debezium.connector.common.Partition;
 import io.debezium.relational.TableId;
 import io.debezium.schema.DataCollectionId;
 
@@ -14,7 +14,7 @@ import io.debezium.schema.DataCollectionId;
  *
  * @author Jiri Pechanec
  */
-public interface SnapshotProgressListener<P extends TaskPartition> {
+public interface SnapshotProgressListener<P extends Partition> {
 
     void snapshotStarted(P partition);
 
@@ -30,7 +30,7 @@ public interface SnapshotProgressListener<P extends TaskPartition> {
 
     void currentChunk(P partition, String chunkId, Object[] from, Object[] to);
 
-    static <P extends TaskPartition> SnapshotProgressListener<P> NO_OP() {
+    static <P extends Partition> SnapshotProgressListener<P> NO_OP() {
         return new SnapshotProgressListener<P>() {
             @Override
             public void snapshotStarted(P partition) {

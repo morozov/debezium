@@ -9,14 +9,14 @@ import java.util.Collection;
 
 import io.debezium.connector.base.ChangeEventQueueMetrics;
 import io.debezium.connector.common.CdcSourceTaskContext;
-import io.debezium.connector.common.TaskPartition;
+import io.debezium.connector.common.Partition;
 import io.debezium.pipeline.metrics.spi.ChangeEventSourceMetricsFactory;
 import io.debezium.pipeline.source.spi.EventMetadataProvider;
 
 /**
  * @author Chris Cranford
  */
-public class DefaultChangeEventSourceMetricsFactory<P extends TaskPartition> implements ChangeEventSourceMetricsFactory<P> {
+public class DefaultChangeEventSourceMetricsFactory<P extends Partition> implements ChangeEventSourceMetricsFactory<P> {
     @Override
     public <T extends CdcSourceTaskContext> SnapshotChangeEventSourceMetrics<P> getSnapshotMetrics(T taskContext,
                                                                                                    ChangeEventQueueMetrics changeEventQueueMetrics,

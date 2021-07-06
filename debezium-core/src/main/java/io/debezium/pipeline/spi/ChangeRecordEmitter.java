@@ -8,7 +8,7 @@ package io.debezium.pipeline.spi;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.header.ConnectHeaders;
 
-import io.debezium.connector.common.TaskPartition;
+import io.debezium.connector.common.Partition;
 import io.debezium.data.Envelope.Operation;
 import io.debezium.schema.DataCollectionSchema;
 
@@ -19,7 +19,7 @@ import io.debezium.schema.DataCollectionSchema;
  *
  * @author Gunnar Morling
  */
-public interface ChangeRecordEmitter<P extends TaskPartition> {
+public interface ChangeRecordEmitter<P extends Partition> {
 
     /**
      * Emits the change record(s) corresponding to data change represented by this emitter.

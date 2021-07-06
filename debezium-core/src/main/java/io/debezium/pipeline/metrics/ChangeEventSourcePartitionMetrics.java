@@ -10,7 +10,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.apache.kafka.connect.data.Struct;
 
 import io.debezium.connector.common.CdcSourceTaskContext;
-import io.debezium.connector.common.TaskPartition;
+import io.debezium.connector.common.Partition;
 import io.debezium.metrics.Metrics;
 import io.debezium.pipeline.ConnectorEvent;
 import io.debezium.pipeline.source.spi.EventMetadataProvider;
@@ -36,7 +36,7 @@ abstract class ChangeEventSourcePartitionMetrics extends Metrics implements Chan
     protected final CdcSourceTaskContext taskContext;
 
     protected <T extends CdcSourceTaskContext> ChangeEventSourcePartitionMetrics(T taskContext, String contextName,
-                                                                                 TaskPartition partition,
+                                                                                 Partition partition,
                                                                                  EventMetadataProvider metadataProvider) {
         super(taskContext, contextName, partition);
 

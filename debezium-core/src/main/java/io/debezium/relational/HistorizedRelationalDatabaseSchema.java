@@ -12,8 +12,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 import io.debezium.DebeziumException;
-import io.debezium.connector.common.TaskOffsetContext;
-import io.debezium.connector.common.TaskPartition;
+import io.debezium.connector.common.Partition;
 import io.debezium.pipeline.spi.OffsetContext;
 import io.debezium.relational.Key.KeyMapper;
 import io.debezium.relational.Tables.ColumnNameFilter;
@@ -33,7 +32,7 @@ import io.debezium.schema.TopicSelector;
  * @author Gunnar Morling
  *
  */
-public abstract class HistorizedRelationalDatabaseSchema<P extends TaskPartition, O extends OffsetContext> extends RelationalDatabaseSchema
+public abstract class HistorizedRelationalDatabaseSchema<P extends Partition, O extends OffsetContext> extends RelationalDatabaseSchema
         implements HistorizedDatabaseSchema<P, O, TableId> {
 
     protected final DatabaseHistory databaseHistory;
@@ -49,14 +48,13 @@ public abstract class HistorizedRelationalDatabaseSchema<P extends TaskPartition
     }
 
     @Override
-    public void recover(TaskOffsetContext<P, O> taskOffsetContext) {
-        final Map<P, O> taskOffsets = taskOffsetContext.getOffsets();
-        final List<O> nonEmptyTaskOffsets = taskOffsets.values().stream()
+    public void recover(Map<P, O> offsets) {
+        final List<O> nonNullOffsets = offsets.values().stream()
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
 
         // exit early as there is nothing to recover
-        if (nonEmptyTaskOffsets.isEmpty()) {
+        if (nonNullOffsets.isEmpty()) {
             return;
         }
 
@@ -64,12 +62,12 @@ public abstract class HistorizedRelationalDatabaseSchema<P extends TaskPartition
             String msg = "The db history topic or its content is fully or partially missing. Please check database history topic configuration and re-execute the snapshot.";
             throw new DebeziumException(msg);
         }
-        Map<Map<String, ?>, Map<String, ?>> offsets = new HashMap<>();
-        taskOffsets.forEach((P partition, O offsetContext) -> {
+        Map<Map<String, ?>, Map<String, ?>> sourceOffsets = new HashMap<>();
+        offsets.forEach((P partition, O offsetContext) -> {
             Map<String, ?> offset = offsetContext != null ? offsetContext.getOffset() : null;
-            offsets.put(partition.getSourcePartition(), offset);
+            sourceOffsets.put(partition.getSourcePartition(), offset);
         });
-        databaseHistory.recover(offsets, tables(), getDdlParser());
+        databaseHistory.recover(sourceOffsets, tables(), getDdlParser());
         recoveredTables = !tableIds().isEmpty();
         for (TableId tableId : tableIds()) {
             buildAndRegisterSchema(tableFor(tableId));

@@ -272,53 +272,56 @@ public class SchemaHistoryTopicIT extends AbstractConnectorTest {
     @Test
     @FixFor("DBZ-2303")
     public void schemaChangeAfterSnapshot() throws Exception {
-        final Configuration config = TestHelper.defaultConfig()
+        final Configuration config = TestHelper.defaultMultiDatabaseConfig()
                 .with(SqlServerConnectorConfig.SNAPSHOT_MODE, SnapshotMode.INITIAL)
                 .with(SqlServerConnectorConfig.INCLUDE_SCHEMA_CHANGES, true)
                 .with(SqlServerConnectorConfig.TABLE_INCLUDE_LIST, "dbo.tablec")
                 .build();
 
-        String databaseName = TestHelper.TEST_REAL_DATABASE1;
-        connection.execute("USE " + databaseName);
+        TestHelper.forEachDatabase(databaseName -> {
+            connection.execute("USE " + databaseName);
+            connection.execute("CREATE TABLE tabled (id int primary key, cold varchar(30))");
 
-        connection.execute("CREATE TABLE tabled (id int primary key, cold varchar(30))");
-
-        connection.execute("INSERT INTO tablec VALUES(1, 'c')");
-        // Enable CDC for already existing table
-        TestHelper.enableTableCdc(connection, databaseName, "tablec");
+            connection.execute("INSERT INTO tablec VALUES(1, 'c')");
+            // Enable CDC for already existing table
+            TestHelper.enableTableCdc(connection, databaseName, "tablec");
+        });
 
         start(SqlServerConnector.class, config);
         assertConnectorIsRunning();
-        TestHelper.waitForSnapshotToBeCompleted(databaseName);
+        TestHelper.waitForAllDatabaseSnapshotsToBeCompleted();
 
         Testing.Print.enable();
         // 1 schema event + 1 data event
-        SourceRecords records = consumeRecordsByTopic(1 + 1);
-        Assertions.assertThat(records.recordsForTopic(TestHelper.topicName(databaseName, "tablec"))).hasSize(1);
+        final SourceRecords snapshotRecords = consumeRecordsByTopic((1 + 1) * TestHelper.TEST_DATABASES.size());
 
         stopConnector();
         assertConnectorNotRunning();
 
-        final Configuration config2 = TestHelper.defaultConfig()
+        final Configuration config2 = TestHelper.defaultMultiDatabaseConfig()
                 .with(SqlServerConnectorConfig.SNAPSHOT_MODE, SnapshotMode.INITIAL)
                 .with(SqlServerConnectorConfig.INCLUDE_SCHEMA_CHANGES, true)
                 .with(SqlServerConnectorConfig.TABLE_INCLUDE_LIST, "dbo.tablec,dbo.tabled")
                 .build();
         start(SqlServerConnector.class, config2);
 
-        // CDC for newly added table
-        TestHelper.enableTableCdc(connection, databaseName, "tabled");
+        TestHelper.forEachDatabase(databaseName -> {
+            connection.execute("USE " + databaseName);
+            Assertions.assertThat(snapshotRecords.recordsForTopic(TestHelper.topicName(databaseName, "tablec"))).hasSize(1);
 
-        connection.execute("INSERT INTO tabled VALUES(1, 'd')");
+            // CDC for newly added table
+            TestHelper.enableTableCdc(connection, databaseName, "tabled");
+            connection.execute("INSERT INTO tabled VALUES(1, 'd')");
 
-        // 1-2 schema events + 1 data event
-        records = consumeRecordsByTopic(2 + 1);
-        Assertions.assertThat(records.recordsForTopic(TestHelper.topicName(databaseName, "tabled"))).hasSize(1);
+            // 1-2 schema events + 1 data event
+            SourceRecords records = consumeRecordsByTopic(2 + 1);
+            Assertions.assertThat(records.recordsForTopic(TestHelper.topicName(databaseName, "tabled"))).hasSize(1);
 
-        final List<SourceRecord> schemaEvents = records.recordsForTopic(TestHelper.TEST_SERVER_NAME);
-        final SourceRecord schemaEventD = schemaEvents.get(schemaEvents.size() - 1);
-        Assertions.assertThat(((Struct) schemaEventD.value()).getStruct("source").getString("schema")).isEqualTo("dbo");
-        Assertions.assertThat(((Struct) schemaEventD.value()).getStruct("source").getString("table")).isEqualTo("tabled");
+            final List<SourceRecord> schemaEvents = records.ddlRecordsForDatabase(databaseName);
+            final SourceRecord schemaEventD = schemaEvents.get(schemaEvents.size() - 1);
+            Assertions.assertThat(((Struct) schemaEventD.value()).getStruct("source").getString("schema")).isEqualTo("dbo");
+            Assertions.assertThat(((Struct) schemaEventD.value()).getStruct("source").getString("table")).isEqualTo("tabled");
+        });
     }
 
     @Test

@@ -5,7 +5,7 @@
  */
 package io.debezium.relational;
 
-import io.debezium.connector.common.TaskPartition;
+import io.debezium.connector.common.Partition;
 import io.debezium.data.Envelope.Operation;
 import io.debezium.pipeline.spi.OffsetContext;
 import io.debezium.util.Clock;
@@ -15,7 +15,7 @@ import io.debezium.util.Clock;
  *
  * @author Jiri Pechanec
  */
-public class SnapshotChangeRecordEmitter<P extends TaskPartition> extends RelationalChangeRecordEmitter<P> {
+public class SnapshotChangeRecordEmitter<P extends Partition> extends RelationalChangeRecordEmitter<P> {
 
     private final Object[] row;
 

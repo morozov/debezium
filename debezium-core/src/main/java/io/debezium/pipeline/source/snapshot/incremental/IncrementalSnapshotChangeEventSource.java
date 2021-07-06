@@ -7,7 +7,7 @@ package io.debezium.pipeline.source.snapshot.incremental;
 
 import java.util.List;
 
-import io.debezium.connector.common.TaskPartition;
+import io.debezium.connector.common.Partition;
 import io.debezium.pipeline.EventDispatcher;
 import io.debezium.pipeline.spi.OffsetContext;
 import io.debezium.schema.DataCollectionId;
@@ -19,7 +19,7 @@ import io.debezium.schema.DataCollectionId;
  *
  * @param <T> data collection id class
  */
-public interface IncrementalSnapshotChangeEventSource<P extends TaskPartition, O extends OffsetContext, T extends DataCollectionId> {
+public interface IncrementalSnapshotChangeEventSource<P extends Partition, O extends OffsetContext, T extends DataCollectionId> {
 
     void closeWindow(String id, EventDispatcher<P, O, T> dispatcher, P partition, OffsetContext offsetContext) throws InterruptedException;
 

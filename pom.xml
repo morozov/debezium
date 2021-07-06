@@ -10,7 +10,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.debezium</groupId>
     <artifactId>debezium-build-parent</artifactId>
-    <version>1.6.0-SNAPSHOT</version>
+    <version>1.7.0-SNAPSHOT</version>
     <name>Debezium Build Aggregator</name>
     <description>Debezium is an open source change data capture platform</description>
     <packaging>pom</packaging>
@@ -102,7 +102,8 @@
 
         <!-- ANTLR -->
         <!-- Align with Antlr runtime version pulled in via Quarkus -->
-        <antlr.version>4.8</antlr.version>
+        <version.antlr>4.8</version.antlr>
+        <version.antlr4test.plugin>1.18</version.antlr4test.plugin>
 
         <!-- Quarkus -->
         <quarkus.version>2.0.0.Final</quarkus.version>

@@ -26,7 +26,7 @@ import io.debezium.config.CommonConnectorConfig;
 import io.debezium.config.Configuration;
 import io.debezium.connector.SnapshotRecord;
 import io.debezium.connector.base.ChangeEventQueue;
-import io.debezium.connector.common.TaskPartition;
+import io.debezium.connector.common.Partition;
 import io.debezium.data.Envelope;
 import io.debezium.data.Envelope.Operation;
 import io.debezium.heartbeat.Heartbeat;
@@ -62,7 +62,7 @@ import io.debezium.util.SchemaNameAdjuster;
  *
  * @author Gunnar Morling
  */
-public class EventDispatcher<P extends TaskPartition, O extends OffsetContext, T extends DataCollectionId> {
+public class EventDispatcher<P extends Partition, O extends OffsetContext, T extends DataCollectionId> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(EventDispatcher.class);
 
@@ -360,7 +360,7 @@ public class EventDispatcher<P extends TaskPartition, O extends OffsetContext, T
      * order to set the "snapshot completed" offset field, which we can't send to Kafka Connect without sending an
      * actual record
      */
-    public interface SnapshotReceiver<P extends TaskPartition> extends ChangeRecordEmitter.Receiver<P> {
+    public interface SnapshotReceiver<P extends Partition> extends ChangeRecordEmitter.Receiver<P> {
         void completeSnapshot() throws InterruptedException;
     }
 
@@ -563,7 +563,7 @@ public class EventDispatcher<P extends TaskPartition, O extends OffsetContext, T
      * Reaction to an incoming change event for which schema is not found
      */
     @FunctionalInterface
-    public static interface InconsistentSchemaHandler<P extends TaskPartition, T extends DataCollectionId> {
+    public static interface InconsistentSchemaHandler<P extends Partition, T extends DataCollectionId> {
 
         /**
          * @return collection schema if the schema was updated and event can be processed, {@code empty} to skip the processing

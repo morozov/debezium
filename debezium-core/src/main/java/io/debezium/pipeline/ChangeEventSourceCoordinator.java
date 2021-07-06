@@ -23,8 +23,7 @@ import io.debezium.annotation.ThreadSafe;
 import io.debezium.config.CommonConnectorConfig;
 import io.debezium.connector.base.ChangeEventQueueMetrics;
 import io.debezium.connector.common.CdcSourceTaskContext;
-import io.debezium.connector.common.TaskOffsetContext;
-import io.debezium.connector.common.TaskPartition;
+import io.debezium.connector.common.Partition;
 import io.debezium.pipeline.metrics.SnapshotChangeEventSourceMetrics;
 import io.debezium.pipeline.metrics.StreamingChangeEventSourceMetrics;
 import io.debezium.pipeline.metrics.spi.ChangeEventSourceMetricsFactory;
@@ -52,7 +51,7 @@ import io.debezium.util.Threads;
  * @author Gunnar Morling
  */
 @ThreadSafe
-public class ChangeEventSourceCoordinator<P extends TaskPartition, O extends OffsetContext> {
+public class ChangeEventSourceCoordinator<P extends Partition, O extends OffsetContext> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ChangeEventSourceCoordinator.class);
 
@@ -61,7 +60,7 @@ public class ChangeEventSourceCoordinator<P extends TaskPartition, O extends Off
      */
     public static final Duration SHUTDOWN_WAIT_TIMEOUT = Duration.ofSeconds(90);
 
-    private final TaskOffsetContext<P, O> previousOffsetContext;
+    private final Map<P, O> previousOffsets;
     private final ErrorHandler errorHandler;
     private final ChangeEventSourceFactory<P, O> changeEventSourceFactory;
     private final ChangeEventSourceMetricsFactory<P> changeEventSourceMetricsFactory;
@@ -78,12 +77,12 @@ public class ChangeEventSourceCoordinator<P extends TaskPartition, O extends Off
     private final Clock clock;
     private final Duration pollInterval;
 
-    public ChangeEventSourceCoordinator(TaskOffsetContext<P, O> previousOffsetContext, ErrorHandler errorHandler, Class<? extends SourceConnector> connectorType,
+    public ChangeEventSourceCoordinator(Map<P, O> previousOffsets, ErrorHandler errorHandler, Class<? extends SourceConnector> connectorType,
                                         CommonConnectorConfig connectorConfig,
                                         ChangeEventSourceFactory<P, O> changeEventSourceFactory,
                                         ChangeEventSourceMetricsFactory<P> changeEventSourceMetricsFactory, EventDispatcher<P, O, ?> eventDispatcher,
                                         DatabaseSchema<?> schema, Clock clock) {
-        this.previousOffsetContext = previousOffsetContext;
+        this.previousOffsets = previousOffsets;
         this.errorHandler = errorHandler;
         this.changeEventSourceFactory = changeEventSourceFactory;
         this.changeEventSourceMetricsFactory = changeEventSourceMetricsFactory;
@@ -98,7 +97,7 @@ public class ChangeEventSourceCoordinator<P extends TaskPartition, O extends Off
                                    EventMetadataProvider metadataProvider) {
         AtomicReference<LoggingContext.PreviousContext> previousLogContext = new AtomicReference<>();
         try {
-            Collection<P> partitions = this.previousOffsetContext.getOffsets().keySet();
+            Collection<P> partitions = this.previousOffsets.keySet();
 
             this.snapshotMetrics = changeEventSourceMetricsFactory.getSnapshotMetrics(taskContext, changeEventQueueMetrics, metadataProvider, partitions);
             this.streamingMetrics = changeEventSourceMetricsFactory.getStreamingMetrics(taskContext, changeEventQueueMetrics, metadataProvider, partitions);
@@ -114,16 +113,20 @@ public class ChangeEventSourceCoordinator<P extends TaskPartition, O extends Off
 
                     ChangeEventSourceContext context = new ChangeEventSourceContextImpl();
                     LOGGER.info("Context created");
-                    P partition;
-                    O previousOffset;
 
                     Map<P, SnapshotResult<O>> partitionState = new HashMap<>();
 
                     SnapshotChangeEventSource<P, O> snapshotSource = changeEventSourceFactory.getSnapshotChangeEventSource(snapshotMetrics);
-                    for (Map.Entry<P, O> entry : previousOffsetContext.getOffsets().entrySet()) {
-                        partition = entry.getKey();
-                        previousOffset = entry.getValue();
-
+                    for (Map.Entry<P, O> entry : previousOffsets.entrySet()) {
+                        P partition = entry.getKey();
+                        O previousOffset = entry.getValue();
+                        CatchUpStreamingResult catchUpStreamingResult = executeCatchUpStreaming(context, snapshotSource, partition, previousOffset);
+                        if (catchUpStreamingResult.performedCatchUpStreaming) {
+                            streamingConnected(false);
+                            commitOffsetLock.lock();
+                            streamingSource = null;
+                            commitOffsetLock.unlock();
+                        }
                         eventDispatcher.setEventListener(snapshotMetrics);
                         SnapshotResult<O> snapshotResult = snapshotSource.execute(context, partition, previousOffset);
                         LOGGER.info("Snapshot ended with {}", snapshotResult);
@@ -137,8 +140,8 @@ public class ChangeEventSourceCoordinator<P extends TaskPartition, O extends Off
                     final Metronome metronome = Metronome.sleeper(pollInterval, clock);
                     Map<P, StreamingResult<O>> partitionStreamingResults = new HashMap<>();
                     while (running) {
-                        for (Map.Entry<P, O> entry : previousOffsetContext.getOffsets().entrySet()) {
-                            partition = entry.getKey();
+                        for (Map.Entry<P, O> entry : previousOffsets.entrySet()) {
+                            P partition = entry.getKey();
                             SnapshotResult<O> snapshotResult = partitionState.get(partition);
                             if (running && snapshotResult.isCompletedOrSkipped()) {
                                 StreamingResult<O> previousStreamingResult = null;
@@ -186,8 +189,9 @@ public class ChangeEventSourceCoordinator<P extends TaskPartition, O extends Off
         }
     }
 
-    protected CatchUpStreamingResult executeCatchUpStreaming(ChangeEventSourceContext context, O previousOffset,
-                                                             SnapshotChangeEventSource<P, O> snapshotSource)
+    protected CatchUpStreamingResult executeCatchUpStreaming(ChangeEventSourceContext context,
+                                                             SnapshotChangeEventSource<P, O> snapshotSource,
+                                                             P partition, O previousOffset)
             throws InterruptedException {
         return new CatchUpStreamingResult(false);
     }

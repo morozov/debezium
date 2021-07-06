@@ -11,7 +11,7 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.debezium.connector.common.TaskPartition;
+import io.debezium.connector.common.Partition;
 import io.debezium.document.Array;
 import io.debezium.pipeline.EventDispatcher;
 import io.debezium.pipeline.signal.Signal.Payload;
@@ -26,7 +26,7 @@ import io.debezium.schema.DataCollectionId;
  * @author Jiri Pechanec
  *
  */
-public class ExecuteSnapshot<P extends TaskPartition> implements Signal.Action<P> {
+public class ExecuteSnapshot<P extends Partition> implements Signal.Action<P> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ExecuteSnapshot.class);
     private static final String FIELD_DATA_COLLECTIONS = "data-collections";

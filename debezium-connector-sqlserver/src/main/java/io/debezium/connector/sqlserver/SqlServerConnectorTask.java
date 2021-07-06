@@ -7,6 +7,7 @@ package io.debezium.connector.sqlserver;
 
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.apache.kafka.connect.errors.ConnectException;
@@ -18,7 +19,6 @@ import io.debezium.config.Configuration;
 import io.debezium.config.Field;
 import io.debezium.connector.base.ChangeEventQueue;
 import io.debezium.connector.common.BaseSourceTask;
-import io.debezium.connector.common.TaskOffsetContext;
 import io.debezium.pipeline.ChangeEventSourceCoordinator;
 import io.debezium.pipeline.DataChangeEvent;
 import io.debezium.pipeline.ErrorHandler;
@@ -38,7 +38,7 @@ import io.debezium.util.SchemaNameAdjuster;
  * @author Jiri Pechanec
  *
  */
-public class SqlServerConnectorTask extends BaseSourceTask<SqlServerTaskPartition, SqlServerOffsetContext> {
+public class SqlServerConnectorTask extends BaseSourceTask<SqlServerPartition, SqlServerOffsetContext> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SqlServerConnectorTask.class);
     private static final String CONTEXT_NAME = "sql-server-connector-task";
@@ -56,7 +56,7 @@ public class SqlServerConnectorTask extends BaseSourceTask<SqlServerTaskPartitio
     }
 
     @Override
-    public ChangeEventSourceCoordinator<SqlServerTaskPartition, SqlServerOffsetContext> start(Configuration config) {
+    public ChangeEventSourceCoordinator<SqlServerPartition, SqlServerOffsetContext> start(Configuration config) {
         final Clock clock = Clock.system();
         final SqlServerConnectorConfig connectorConfig = new SqlServerConnectorConfig(config);
         final TopicSelector<TableId> topicSelector = SqlServerTopicSelector.defaultSelector(connectorConfig);
@@ -83,16 +83,13 @@ public class SqlServerConnectorTask extends BaseSourceTask<SqlServerTaskPartitio
         catch (SQLException e) {
             throw new ConnectException(e);
         }
+        this.schema = new SqlServerDatabaseSchema(connectorConfig, valueConverters, topicSelector, schemaNameAdjuster);
+        this.schema.initializeStorage();
 
-        TaskOffsetContext.Loader<SqlServerTaskPartition, SqlServerOffsetContext, SqlServerOffsetContext.Loader> loader = new TaskOffsetContext.Loader<>(
-                context.offsetStorageReader(),
+        Map<SqlServerPartition, SqlServerOffsetContext> offsets = getPreviousOffsets(
+                new SqlServerPartition.Provider(connectorConfig, config, metadataConnection),
                 new SqlServerOffsetContext.Loader(connectorConfig));
-        TaskOffsetContext<SqlServerTaskPartition, SqlServerOffsetContext> taskOffsetContext = loader.load(
-                new SqlServerTaskPartition.Provider(connectorConfig, config, metadataConnection).getPartitions());
-
-        schema = new SqlServerDatabaseSchema(connectorConfig, valueConverters, topicSelector, schemaNameAdjuster);
-        schema.initializeStorage();
-        schema.recover(taskOffsetContext);
+        schema.recover(offsets);
 
         taskContext = new SqlServerTaskContext(connectorConfig, schema);
 
@@ -109,7 +106,7 @@ public class SqlServerConnectorTask extends BaseSourceTask<SqlServerTaskPartitio
 
         final SqlServerEventMetadataProvider metadataProvider = new SqlServerEventMetadataProvider();
 
-        final EventDispatcher<SqlServerTaskPartition, SqlServerOffsetContext, TableId> dispatcher = new EventDispatcher<>(
+        final EventDispatcher<SqlServerPartition, SqlServerOffsetContext, TableId> dispatcher = new EventDispatcher<>(
                 connectorConfig,
                 topicSelector,
                 schema,
@@ -119,8 +116,8 @@ public class SqlServerConnectorTask extends BaseSourceTask<SqlServerTaskPartitio
                 metadataProvider,
                 schemaNameAdjuster);
 
-        ChangeEventSourceCoordinator<SqlServerTaskPartition, SqlServerOffsetContext> coordinator = new ChangeEventSourceCoordinator<>(
-                taskOffsetContext,
+        ChangeEventSourceCoordinator<SqlServerPartition, SqlServerOffsetContext> coordinator = new ChangeEventSourceCoordinator<>(
+                offsets,
                 errorHandler,
                 SqlServerConnector.class,
                 connectorConfig,

@@ -16,7 +16,7 @@ import org.apache.kafka.connect.data.Struct;
 
 import io.debezium.annotation.ThreadSafe;
 import io.debezium.connector.common.CdcSourceTaskContext;
-import io.debezium.connector.common.TaskPartition;
+import io.debezium.connector.common.Partition;
 import io.debezium.pipeline.source.spi.EventMetadataProvider;
 import io.debezium.pipeline.spi.OffsetContext;
 import io.debezium.schema.DataCollectionId;
@@ -36,7 +36,7 @@ public class StreamingChangeEventSourcePartitionMetrics extends ChangeEventSourc
     private final AtomicReference<String> lastTransactionId = new AtomicReference<>();
 
     public <T extends CdcSourceTaskContext> StreamingChangeEventSourcePartitionMetrics(T taskContext, String contextName,
-                                                                                       TaskPartition partition,
+                                                                                       Partition partition,
                                                                                        EventMetadataProvider metadataProvider) {
         super(taskContext, contextName, partition, metadataProvider);
     }

@@ -17,7 +17,7 @@ import org.slf4j.Logger;
 import io.debezium.annotation.ThreadSafe;
 import io.debezium.connector.base.ChangeEventQueueMetrics;
 import io.debezium.connector.common.CdcSourceTaskContext;
-import io.debezium.connector.common.TaskPartition;
+import io.debezium.connector.common.Partition;
 import io.debezium.metrics.Metrics;
 import io.debezium.pipeline.ConnectorEvent;
 import io.debezium.pipeline.source.spi.DataChangeEventListener;
@@ -30,7 +30,7 @@ import io.debezium.schema.DataCollectionId;
  * @author Randall Hauch, Jiri Pechanec
  */
 @ThreadSafe
-public abstract class PipelineMetrics<P extends TaskPartition, B extends ChangeEventSourcePartitionMetrics>
+public abstract class PipelineMetrics<P extends Partition, B extends ChangeEventSourcePartitionMetrics>
         extends Metrics implements DataChangeEventListener<P>, ChangeEventSourceTaskMetricsMXBean {
 
     private final ChangeEventQueueMetrics changeEventQueueMetrics;

@@ -6,7 +6,6 @@
 package io.debezium.connector.sqlserver;
 
 import java.time.Instant;
-import java.util.Collections;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -26,7 +25,6 @@ import io.debezium.util.Collect;
 public class SqlServerOffsetContext implements OffsetContext {
 
     private static final String SERVER_PARTITION_KEY = "server";
-    private static final String DATABASE_PARTITION_KEY = "database";
     private static final String SNAPSHOT_COMPLETED_KEY = "snapshot_completed";
 
     private final Schema sourceInfoSchema;
@@ -155,11 +153,6 @@ public class SqlServerOffsetContext implements OffsetContext {
 
         public Loader(SqlServerConnectorConfig connectorConfig) {
             this.connectorConfig = connectorConfig;
-        }
-
-        @Override
-        public Map<String, ?> getPartition() {
-            return Collections.singletonMap(SERVER_PARTITION_KEY, connectorConfig.getLogicalName());
         }
 
         @Override

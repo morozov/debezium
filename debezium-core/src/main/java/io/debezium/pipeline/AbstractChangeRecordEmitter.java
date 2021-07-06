@@ -5,7 +5,7 @@
  */
 package io.debezium.pipeline;
 
-import io.debezium.connector.common.TaskPartition;
+import io.debezium.connector.common.Partition;
 import io.debezium.data.Envelope.Operation;
 import io.debezium.pipeline.spi.ChangeRecordEmitter;
 import io.debezium.pipeline.spi.OffsetContext;
@@ -17,7 +17,7 @@ import io.debezium.util.Clock;
  *
  * @author Chris Cranford
  */
-public abstract class AbstractChangeRecordEmitter<P extends TaskPartition, T extends DataCollectionSchema>
+public abstract class AbstractChangeRecordEmitter<P extends Partition, T extends DataCollectionSchema>
         implements ChangeRecordEmitter<P> {
 
     private final OffsetContext offsetContext;

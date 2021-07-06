@@ -3,7 +3,7 @@
     <parent>
         <groupId>io.debezium</groupId>
         <artifactId>debezium-parent</artifactId>
-        <version>1.6.0-SNAPSHOT</version>
+        <version>1.7.0-SNAPSHOT</version>
 	<relativePath>../debezium-parent/pom.xml</relativePath>
     </parent>
     <modelVersion>4.0.0</modelVersion>
@@ -62,7 +62,7 @@
             <plugin>
                 <groupId>org.antlr</groupId>
                 <artifactId>antlr4-maven-plugin</artifactId>
-                <version>${antlr.version}</version>
+                <version>${version.antlr}</version>
                 <configuration>
                     <sourceDirectory>${antlr.source.directory}</sourceDirectory>
                 </configuration>
@@ -90,7 +90,14 @@
                         <!-- https://github.com/antlr/antlr4test-maven-plugin -->
                         <groupId>com.khubla.antlr</groupId>
                         <artifactId>antlr4test-maven-plugin</artifactId>
-                        <version>1.11</version>
+                        <version>${version.antlr4test.plugin}</version>
+                        <dependencies>
+                            <dependency>
+                                <groupId>org.antlr</groupId>
+                                <artifactId>antlr4-runtime</artifactId>
+                                <version>${version.antlr}</version>
+                            </dependency>
+                        </dependencies>
                         <executions>
                             <execution>
                                 <id>MySql</id>

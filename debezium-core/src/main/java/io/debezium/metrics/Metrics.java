@@ -22,7 +22,7 @@ import org.slf4j.Logger;
 import io.debezium.annotation.ThreadSafe;
 import io.debezium.config.CommonConnectorConfig;
 import io.debezium.connector.common.CdcSourceTaskContext;
-import io.debezium.connector.common.TaskPartition;
+import io.debezium.connector.common.Partition;
 
 /**
  * Base for metrics implementations.
@@ -39,7 +39,7 @@ public abstract class Metrics {
         this.name = metricName(taskContext.getConnectorType(), taskContext.getConnectorName(), contextName, taskContext.getTaskId());
     }
 
-    protected Metrics(CdcSourceTaskContext taskContext, String contextName, TaskPartition partition) {
+    protected Metrics(CdcSourceTaskContext taskContext, String contextName, Partition partition) {
         this.name = metricName(taskContext.getConnectorType(), taskContext.getConnectorName(), contextName, taskContext.getTaskId(), partition.getSourcePartition());
     }
 

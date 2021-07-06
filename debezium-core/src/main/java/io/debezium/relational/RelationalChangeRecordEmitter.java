@@ -12,7 +12,7 @@ import org.apache.kafka.connect.header.ConnectHeaders;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.debezium.connector.common.TaskPartition;
+import io.debezium.connector.common.Partition;
 import io.debezium.data.Envelope.Operation;
 import io.debezium.pipeline.AbstractChangeRecordEmitter;
 import io.debezium.pipeline.spi.ChangeRecordEmitter;
@@ -25,7 +25,7 @@ import io.debezium.util.Clock;
  *
  * @author Gunnar Morling
  */
-public abstract class RelationalChangeRecordEmitter<P extends TaskPartition>
+public abstract class RelationalChangeRecordEmitter<P extends Partition>
         extends AbstractChangeRecordEmitter<P, TableSchema> {
 
     public static final String PK_UPDATE_OLDKEY_FIELD = "__debezium.oldkey";

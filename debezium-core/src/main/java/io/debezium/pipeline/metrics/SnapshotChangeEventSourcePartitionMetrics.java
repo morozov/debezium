@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import io.debezium.annotation.ThreadSafe;
 import io.debezium.connector.common.CdcSourceTaskContext;
-import io.debezium.connector.common.TaskPartition;
+import io.debezium.connector.common.Partition;
 import io.debezium.pipeline.source.spi.EventMetadataProvider;
 import io.debezium.relational.TableId;
 import io.debezium.schema.DataCollectionId;
@@ -48,7 +48,7 @@ public class SnapshotChangeEventSourcePartitionMetrics extends ChangeEventSource
     private final AtomicReference<Object[]> chunkTo = new AtomicReference<>();
 
     public <T extends CdcSourceTaskContext> SnapshotChangeEventSourcePartitionMetrics(T taskContext, String contextName,
-                                                                                      TaskPartition partition,
+                                                                                      Partition partition,
                                                                                       EventMetadataProvider metadataProvider) {
         super(taskContext, contextName, partition, metadataProvider);
     }

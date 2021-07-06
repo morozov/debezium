@@ -9,7 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.debezium.DebeziumException;
-import io.debezium.connector.common.TaskPartition;
+import io.debezium.connector.common.Partition;
 import io.debezium.document.Array;
 import io.debezium.pipeline.EventDispatcher;
 import io.debezium.pipeline.signal.Signal.Payload;
@@ -23,7 +23,7 @@ import io.debezium.schema.DataCollectionId;
 import io.debezium.schema.SchemaChangeEvent;
 import io.debezium.schema.SchemaChangeEvent.SchemaChangeEventType;
 
-public class SchemaChanges<P extends TaskPartition, O extends OffsetContext> implements Signal.Action<P> {
+public class SchemaChanges<P extends Partition, O extends OffsetContext> implements Signal.Action<P> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SchemaChanges.class);
 

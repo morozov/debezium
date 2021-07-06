@@ -8,10 +8,10 @@ package io.debezium.pipeline.signal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.debezium.connector.common.TaskPartition;
+import io.debezium.connector.common.Partition;
 import io.debezium.pipeline.signal.Signal.Payload;
 
-public class Log<P extends TaskPartition> implements Signal.Action<P> {
+public class Log<P extends Partition> implements Signal.Action<P> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Log.class);
     private static final String FIELD_MESSAGE = "message";
