@@ -67,12 +67,12 @@ public class SqlServerPartition implements Partition {
             return false;
         }
         final SqlServerPartition other = (SqlServerPartition) obj;
-        return Objects.equals(serverName, other.serverName);
+        return Objects.equals(serverName, other.serverName) && Objects.equals(databaseName, other.databaseName);
     }
 
     @Override
     public int hashCode() {
-        return serverName.hashCode();
+        return Objects.hash(serverName, databaseName);
     }
 
     static class Provider implements Partition.Provider<SqlServerPartition> {
