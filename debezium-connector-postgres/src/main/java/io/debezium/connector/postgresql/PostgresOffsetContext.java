@@ -70,11 +70,6 @@ public class PostgresOffsetContext implements OffsetContext {
     }
 
     @Override
-    public Map<String, ?> getPartition() {
-        return partition;
-    }
-
-    @Override
     public Map<String, ?> getOffset() {
         Map<String, Object> result = new HashMap<>();
         if (sourceInfo.timestamp() != null) {

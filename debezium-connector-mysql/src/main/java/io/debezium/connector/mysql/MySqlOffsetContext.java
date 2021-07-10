@@ -70,20 +70,6 @@ public class MySqlOffsetContext implements OffsetContext {
                 sourceInfo);
     }
 
-    /**
-     * Get the Kafka Connect detail about the source "partition", which describes the portion of the source that we are
-     * consuming. Since we're reading the binary log for a single database, the source partition specifies the
-     * {@link #setServerName(String) database server}.
-     * <p>
-     * The resulting map is mutable for efficiency reasons (this information rarely changes), but should not be mutated.
-     *
-     * @return the source partition information; never null
-     */
-    @Override
-    public Map<String, ?> getPartition() {
-        return partition;
-    }
-
     @Override
     public Map<String, ?> getOffset() {
         final Map<String, Object> offset = offsetUsingPosition(restartRowsToSkip);

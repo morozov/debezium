@@ -111,11 +111,6 @@ public class OracleOffsetContext implements OffsetContext {
     }
 
     @Override
-    public Map<String, ?> getPartition() {
-        return partition;
-    }
-
-    @Override
     public Map<String, ?> getOffset() {
         if (sourceInfo.isSnapshot()) {
             Map<String, Object> offset = new HashMap<>();

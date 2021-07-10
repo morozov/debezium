@@ -64,11 +64,6 @@ public class SqlServerOffsetContext implements OffsetContext {
     }
 
     @Override
-    public Map<String, ?> getPartition() {
-        return partition;
-    }
-
-    @Override
     public Map<String, ?> getOffset() {
         if (sourceInfo.isSnapshot()) {
             return Collect.hashMapOf(
